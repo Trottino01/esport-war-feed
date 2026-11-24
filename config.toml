@@ -35,9 +35,9 @@ esports_keywords = [
   "scrim", "scrims", "pro war", "pro league",
 ]
 
+# Solo TH19: ogni video deve citare il TH19 nel titolo, nella descrizione o nei tag.
 clash_keywords = [
-  "clash of clans", "clashofclans", "coc", "clash esports",
-  "th19" "town hall 19",
+  "th19", "th 19", "town hall 19", "townhall 19", "th19s", "#th19",
 ]
 
 # Cercate SOLO nel titolo (nelle descrizioni compaiono spesso per sponsor e link)
@@ -56,11 +56,11 @@ exclude_in_title = [
 enabled     = true
 every_hours = 2
 queries = [
-  "clash of clans esports mode",
-  "clash of clans world championship",
-  "clash of clans town hall cup",
-  "clash of clans esports war",
-  "clash of clans scrim",
+  "th19 esports",
+  "th19 esports mode",
+  "clash of clans th19 war",
+  "th19 world championship",
+  "th19 scrim",
 ]
 # relevance_language = "en"
 
