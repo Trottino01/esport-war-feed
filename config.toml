@@ -22,45 +22,56 @@ match_description    = true   # cerca le parole chiave anche nella descrizione: 
 [filter]
 # Un video viene inoltrato se:
 #   • nel titolo NON c'è nessuna parola di exclude_in_title, e
-#   • titolo/descrizione/tag contengono almeno una parola di esports_keywords, e
-#   • arriva da un canale dedicato a CoC (clash_only = true) OPPURE contiene una parola di clash_keywords.
-# Maiuscole e minuscole non contano; le parole vengono cercate intere ("thc" non trova "thchallenge").
+#   • titolo/descrizione/tag contengono almeno una parola di esports_keywords (guerra o esports, in più lingue), e
+#   • contengono il TH19 (clash_keywords), salvo i canali dedicati a CoC (clash_only = true).
+# Maiuscole e minuscole non contano. Dopo ogni modifica il bot ricontrolla da solo i video scartati prima.
 esports_keywords = [
+  # esports / tornei
   "esports mode", "esport mode", "e-sports mode", "modalità esports",
-  "esports", "e-sports", "esport",
+  "esports", "e-sports", "esport", "e-sport",
   "world championship", "world finals", "worlds", "clashworlds",
   "monthly final", "monthly finals", "monthly qualifier", "monthly qualifiers",
   "last chance qualifier", "lcq", "golden ticket",
   "town hall cup", "town hall cups", "thc",
-  "scrim", "scrims", "pro war", "pro league",
+  "scrim", "scrims", "pro war", "pro league", "tournament", "league",
+  # guerra / amichevole / torneo in varie lingue
+  "war", "wars", "friendly war", "fw",
+  "guerra", "guerre", "guerras", "amichevole", "amistosa", "amistoso", "amicale", "torneo", "torneio", "tournoi", "liga",
+  "krieg", "kriege", "clankrieg", "freundschaftskrieg", "turnier",
+  "война", "кв", "клановая война", "турнир",
+  "savaş", "klan savaşı", "turnuva", "perang", "turnamen",
+  "対戦", "クラン対戦", "フレンドリー", "大会", "練習試合",
+  "部落战", "友谊战", "比赛", "电竞",
+  "클랜전", "친선전", "대회", "스크림",
 ]
 
-# Solo TH19: ogni video deve citare il TH19 nel titolo, nella descrizione o nei tag.
+# TH19 scritto nei modi più comuni, anche in altre lingue
 clash_keywords = [
-  "th19", "th 19", "town hall 19", "townhall 19", "th19s", "#th19",
+  "th19", "th 19", "th-19", "town hall 19", "townhall 19", "th19s",
+  "hdv 19", "hdv19", "hôtel de ville 19", "rathaus 19", "rh19", "ayuntamiento 19", "cv19", "cv 19",
+  "ратуша 19", "тх19", "тх 19", "19本", "大本营19", "19홀", "19레벨",
 ]
 
 # Cercate SOLO nel titolo (nelle descrizioni compaiono spesso per sponsor e link)
 exclude_in_title = [
   "clash royale", "brawl stars", "squad busters", "boom beach", "hay day",
-  "#shorts", "builder base",
-  # "base link", "base layout",   # togli il # se vuoi escludere i video di sole basi
+  "#shorts", "builder base", "legend league", "legends league", "ranked",
+  "trophy push", "farming", "base link", "base links",
 ]
 
 [search]
-# Ricerca su TUTTO YouTube: trova anche canali che non hai elencato sotto.
-# OBBLIGATORIO in questa configurazione: senza il segreto YOUTUBE_API_KEY il bot non trova nulla.
-# Ogni query costa 100 unità; il limite gratuito è 10.000 al giorno.
-# 5 query ogni 2 ore = 6.000 unità al giorno (resta margine per i dettagli dei video).
-# Non scendere sotto every_hours = 1.5, altrimenti la quota finisce prima di sera.
+# Ricerca su TUTTO YouTube, in tutte le lingue (si cerca "th19", che quasi tutti scrivono così).
+# OBBLIGATORIO: senza il segreto YOUTUBE_API_KEY il bot non trova nulla.
+# Ogni pagina di risultati costa 100 unità; il limite gratuito è 10.000 al giorno.
+# Qui: 9 pagine ogni 3 ore = 7.200 unità al giorno.
 enabled     = true
-every_hours = 2
+every_hours = 3
 queries = [
+  { q = "th19", pages = 4 },                       # tutti i video TH19 recenti, fino a 200
+  { q = "th19", event = "completed", pages = 2 },  # VOD delle dirette concluse
+  { q = "th19", event = "live" },                  # dirette in corso (il link diventa il VOD)
+  "th19 war",
   "th19 esports",
-  "th19 esports mode",
-  "clash of clans th19 war",
-  "th19 world championship",
-  "th19 scrim",
 ]
 # relevance_language = "en"
 
