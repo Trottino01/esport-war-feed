@@ -23,6 +23,7 @@ Richiede Python 3.11 o successivo. Nessuna libreria da installare.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import os
@@ -299,36 +300,53 @@ def search_api(cfg: dict, state: dict, api_key: str, now: datetime, max_age: tim
     since = max(parse_dt(last) - timedelta(hours=6), now - max_age) if last else now - max_age
     out: list[Video] = []
     ok = True
-    for q in s.get("queries", []):
+    event_names = {"completed": "dirette concluse", "live": "dirette in corso", "upcoming": "dirette programmate"}
+    items_all = []
+    for entry in s.get("queries", []):
+        # Una query può essere una stringa oppure {q = "...", event = "completed"|"live", pages = 2}
+        if isinstance(entry, dict):
+            q, event, pages = str(entry.get("q", "")), entry.get("event", ""), int(entry.get("pages", 1))
+        else:
+            q, event, pages = str(entry), "", 1
+        label = f"'{q}'" + (f" ({event_names.get(event, event)})" if event else "")
         params = {"part": "snippet", "q": q, "type": "video", "order": "date",
                   "maxResults": 50, "publishedAfter": iso(since)}
+        if event:
+            params["eventType"] = event
         if s.get("relevance_language"):
             params["relevanceLanguage"] = s["relevance_language"]
-        try:
-            data = api_get("search", params, api_key)
-        except Exception as e:
-            log(f"⚠️  Ricerca '{q}' non riuscita: {e}")
-            ok = False
+        n_before = len(items_all)
+        for _ in range(max(1, pages)):
+            try:
+                data = api_get("search", params, api_key)
+            except Exception as e:
+                log(f"⚠️  Ricerca {label} non riuscita: {e}")
+                ok = False
+                break
+            items_all += [(it, label) for it in data.get("items", [])]
+            if not data.get("nextPageToken"):
+                break
+            params["pageToken"] = data["nextPageToken"]
+        log(f"🔎 {label}: {len(items_all) - n_before} risultati")
+    for it, label in items_all:
+        vid = (it.get("id") or {}).get("videoId")
+        sn = it.get("snippet") or {}
+        if not vid:
             continue
-        for it in data.get("items", []):
-            vid = (it.get("id") or {}).get("videoId")
-            sn = it.get("snippet") or {}
-            if not vid:
-                continue
-            live = sn.get("liveBroadcastContent", "none")
-            out.append(Video(
-                id=vid,
-                title=html.unescape(sn.get("title", "")),
-                description=html.unescape(sn.get("description", "")),
-                channel=html.unescape(sn.get("channelTitle", "")),
-                channel_id=sn.get("channelId", ""),
-                published=parse_dt(sn.get("publishedAt")),
-                source=f"ricerca '{q}'",
-                live="" if live == "none" else live,
-            ))
+        live = sn.get("liveBroadcastContent", "none")
+        out.append(Video(
+            id=vid,
+            title=html.unescape(sn.get("title", "")),
+            description=html.unescape(sn.get("description", "")),
+            channel=html.unescape(sn.get("channelTitle", "")),
+            channel_id=sn.get("channelId", ""),
+            published=parse_dt(sn.get("publishedAt")),
+            source=f"ricerca {label}",
+            live="" if live == "none" else live,
+        ))
     if ok:
         state["last_search"] = iso(now)
-    log(f"🔎 Ricerca YouTube: {len(out)} risultati da {len(s.get('queries', []))} query")
+    log(f"🔎 Ricerca YouTube: {len(out)} risultati in totale (dal {since.strftime('%d/%m %H:%M')} UTC)")
     return out
 
 
@@ -376,7 +394,12 @@ def compile_keywords(words) -> list[tuple[str, re.Pattern]]:
     for w in words or []:
         w = str(w).strip().lower()
         if w:
-            out.append((w, re.compile(r"(?<!\w)" + re.escape(w) + r"(?!\w)", re.IGNORECASE)))
+            # Parola intera per gli alfabeti con spazi (latino, cirillico); nessun confine per
+            # cinese/giapponese/coreano, dove le parole sono attaccate (es. "クラクラTH19").
+            b = "0-9a-z\u00c0-\u024f\u0400-\u04ff"
+            pre = f"(?<![{b}])" if re.match(f"[{b}]", w[0]) else ""
+            post = f"(?![{b}])" if re.match(f"[{b}]", w[-1]) else ""
+            out.append((w, re.compile(pre + re.escape(w) + post, re.IGNORECASE)))
     return out
 
 
@@ -503,6 +526,18 @@ def run_once(cfg: dict, state_path: Path, dry_run: bool = False) -> int:
     min_dur = int(float(beh.get("min_duration_minutes", 4)) * 60)
     matcher = Matcher(cfg.get("filter", {}), bool(beh.get("match_description", True)))
 
+    # Se filtro o ricerche sono cambiati, rivaluta i video scartati prima e rifà la ricerca da capo
+    fhash = hashlib.sha1(json.dumps([cfg.get("filter", {}), cfg.get("search", {}),
+                                     beh.get("max_age_days")], sort_keys=True).encode()).hexdigest()[:12]
+    if state.get("filter_hash") != fhash:
+        dropped = [k for k, val in seen.items() if isinstance(val, list) and val[0] in ("skip", "old")]
+        for k in dropped:
+            del seen[k]
+        had_search = state.pop("last_search", None)
+        if dropped or had_search:
+            log(f"♻️  Configurazione cambiata: rifaccio la ricerca e ricontrollo {len(dropped)} video scartati prima")
+        state["filter_hash"] = fhash
+
     api_key = env_value("YOUTUBE_API_KEY")
     webhook = env_value("DISCORD_WEBHOOK_URL")
     if not webhook and not dry_run:
@@ -549,7 +584,7 @@ def run_once(cfg: dict, state_path: Path, dry_run: bool = False) -> int:
         if (v.duration is not None and v.live not in ("live", "upcoming")
                 and v.duration < min_dur):
             mark(v, "short")
-            debug(f"   scartato (troppo corto): {v.title}")
+            log(f"   scartato (sotto {min_dur // 60} min): {v.title}  [{v.channel}]")
             continue
         ok, hits, why = matcher.check(v)
         if ok:
@@ -559,8 +594,7 @@ def run_once(cfg: dict, state_path: Path, dry_run: bool = False) -> int:
             log(f"✅ {v.title}  [{v.channel}]  ← {', '.join(hits) or 'fonte sempre inoltrata'}")
         else:
             mark(v, "skip")
-            if VERBOSE or dry_run:
-                log(f"   scartato ({why}): {v.title}  [{v.channel}]")
+            log(f"   scartato ({why}): {v.title}  [{v.channel}]")
 
     # 4) invio (dal più vecchio al più recente)
     queue = sorted(pending.values(), key=lambda d: d["published"])
