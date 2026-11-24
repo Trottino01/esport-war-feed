@@ -42,7 +42,13 @@ esports_keywords = [
   "town hall cup", "town hall cups", "thc",
   # allenamenti delle squadre pro
   "scrim", "scrims", "скрим", "練習試合", "스크림",
-  # Togli il # qui sotto se vuoi anche i tornei della community (non sempre in modalità esports):
+  # tornei e fasi a eliminazione (es. "TDL LEGACY CUP", "RO32", "🆚")
+  "cup", "copa", "coppa", "coupe", "kupa", "杯",
+  "ro64", "ro32", "ro16", "ro8", "round of 32", "round of 16",
+  "quarterfinal", "quarterfinals", "quarter final", "semifinal", "semifinals", "semi final",
+  "grand final", "grand finals", "playoff", "playoffs", "group stage", "bracket",
+  "🆚",
+  # Togli il # qui sotto se vuoi anche questi (più rumore):
   # "tournament", "torneo", "torneio", "tournoi", "turnier", "турнир", "大会", "比赛", "대회",
 ]
 
@@ -61,18 +67,19 @@ exclude_in_title = [
 ]
 
 [search]
-# Ricerca su TUTTO YouTube, in tutte le lingue (si cerca "th19", che quasi tutti scrivono così).
+# Ricerca su TUTTO YouTube, concentrata sulle LIVE (dirette concluse e in corso),
+# in tutte le lingue: si cerca "th19", che quasi tutti scrivono così.
 # OBBLIGATORIO: senza il segreto YOUTUBE_API_KEY il bot non trova nulla.
 # Ogni pagina di risultati costa 100 unità; il limite gratuito è 10.000 al giorno.
-# Qui: 9 pagine ogni 3 ore = 7.200 unità al giorno.
+# Qui: 10 pagine ogni 3 ore = 8.000 unità al giorno.
 enabled     = true
 every_hours = 3
 queries = [
-  { q = "th19", pages = 4 },                       # tutti i video TH19 recenti, fino a 200
-  { q = "th19", event = "completed", pages = 2 },  # VOD delle dirette concluse
-  { q = "th19", event = "live" },                  # dirette in corso (il link diventa il VOD)
+  { q = "th19", event = "completed", pages = 4 },      # VOD delle live concluse (fino a 200)
+  { q = "th19 war", event = "completed", pages = 2 },  # VOD delle live di guerra
+  { q = "th19", event = "live", pages = 2 },           # live in corso (il link diventa il VOD)
+  "th19 esports",                                      # video normali con "esports" (es. scrim caricate)
   "th19 scrim",
-  "th19 esports",
 ]
 # relevance_language = "en"
 
@@ -81,8 +88,12 @@ queries = [
 #   clash_only  = true  → canale solo di Clash of Clans (default)
 #   forward_all = true  → inoltra TUTTI i suoi video, senza filtro (es. il canale VOD di una squadra)
 
-# Nessun canale fisso: il bot usa solo la ricerca su tutto YouTube (sezione [search]).
-# Se un giorno vuoi seguirne uno in modo più rapido (ogni 15 min), togli i # da un esempio.
+# La ricerca copre tutto YouTube; i canali qui sotto vengono letti in più ogni 15 minuti
+# (più rapido e non usa quota). Il filtro vale anche per loro.
+
+[[channels]]
+name = "Style_coc (TDL Cup)"
+id   = "UCt1Ksyw0AycfjdO3MwZFJaQ"
 
 # [[channels]]
 # name = "Clash of Clans (ufficiale: Worlds, Monthly Final, THC)"
