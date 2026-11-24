@@ -259,12 +259,14 @@ def collect_rss(cfg: dict, state: dict, api_key: str, skip_shorts: bool):
         except Exception as e:
             log(f"⚠️  Feed di '{name}' non raggiungibile ({e}); riprovo al prossimo giro")
         if cid.startswith("UC"):
-            # Video lunghi (senza Shorts): allarga la copertura oltre gli ultimi 15 caricamenti
-            try:
-                for v in parse_feed(http_get(f"{FEED}?playlist_id=UULF{cid[2:]}", retries=1), src, trusted, fwd):
-                    got.setdefault(v.id, v)
-            except Exception:
-                pass
+            # Video lunghi (UULF) e dirette (UULV): allargano la copertura oltre gli ultimi
+            # 15 caricamenti del canale, che spesso sono quasi tutti Shorts
+            for prefix in ("UULV", "UULF"):
+                try:
+                    for v in parse_feed(http_get(f"{FEED}?playlist_id={prefix}{cid[2:]}", retries=1), src, trusted, fwd):
+                        got.setdefault(v.id, v)
+                except Exception:
+                    pass
             if skip_shorts:
                 try:
                     shorts |= {v.id for v in parse_feed(
