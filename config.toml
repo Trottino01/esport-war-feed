@@ -37,7 +37,7 @@ esports_keywords = [
 
 clash_keywords = [
   "clash of clans", "clashofclans", "coc", "clash esports",
-  "th18", "th17", "th16", "town hall 18", "town hall 17",
+  "th19" "town hall 19",
 ]
 
 # Cercate SOLO nel titolo (nelle descrizioni compaiono spesso per sponsor e link)
@@ -49,16 +49,18 @@ exclude_in_title = [
 
 [search]
 # Ricerca su TUTTO YouTube: trova anche canali che non hai elencato sotto.
-# Si attiva solo se imposti il segreto YOUTUBE_API_KEY (gratuito, vedi README).
+# OBBLIGATORIO in questa configurazione: senza il segreto YOUTUBE_API_KEY il bot non trova nulla.
 # Ogni query costa 100 unità; il limite gratuito è 10.000 al giorno.
-# 4 query ogni 3 ore = 3.200 unità al giorno.
+# 5 query ogni 2 ore = 6.000 unità al giorno (resta margine per i dettagli dei video).
+# Non scendere sotto every_hours = 1.5, altrimenti la quota finisce prima di sera.
 enabled     = true
-every_hours = 3
+every_hours = 2
 queries = [
   "clash of clans esports mode",
   "clash of clans world championship",
   "clash of clans town hall cup",
   "clash of clans esports war",
+  "clash of clans scrim",
 ]
 # relevance_language = "en"
 
@@ -67,21 +69,12 @@ queries = [
 #   clash_only  = true  → canale solo di Clash of Clans (default)
 #   forward_all = true  → inoltra TUTTI i suoi video, senza filtro (es. il canale VOD di una squadra)
 
-[[channels]]
-name = "Clash of Clans (ufficiale: Worlds, Monthly Final, THC)"
-id   = "UCD1Em4q90ZUK2R5HKesszJg"
+# Nessun canale fisso: il bot usa solo la ricerca su tutto YouTube (sezione [search]).
+# Se un giorno vuoi seguirne uno in modo più rapido (ogni 15 min), togli i # da un esempio.
 
-[[channels]]
-name = "Blueprint CoC"
-id   = "UCQJJGSWnPUCb8uKV_MoJeOA"
-
-[[channels]]
-name = "CarbonFin Gaming"
-id   = "UCNL6sUET_O5MYNqESOIIBpw"
-
-[[channels]]
-name = "Judo Sloth Gaming"
-id   = "UC85aYbNSFjsJdxfpxgQr8tA"
+# [[channels]]
+# name = "Clash of Clans (ufficiale: Worlds, Monthly Final, THC)"
+# id   = "UCD1Em4q90ZUK2R5HKesszJg"
 
 # Esempio con handle:
 # [[channels]]
