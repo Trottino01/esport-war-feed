@@ -95,6 +95,18 @@ queries = [
 name = "Style_coc (TDL Cup)"
 id   = "UCt1Ksyw0AycfjdO3MwZFJaQ"
 
+[[channels]]
+name = "Salz Gaming"            # @Salz_Gaming9
+id   = "UCDT2ZQDmtlPQSUk4Xc2eXZg"
+
+[[channels]]
+name = "PLACEBO CoC"            # @cocplacebo765 (esports dal Giappone)
+id   = "UCVKRQvYZ-GtdVQN8j9N1xgw"
+
+[[channels]]
+name = "Clash with Kakashi"     # @Clashwithkakashi
+id   = "UCc1hZi2UA8LxCQrnaAEtsfQ"
+
 # [[channels]]
 # name = "Clash of Clans (ufficiale: Worlds, Monthly Final, THC)"
 # id   = "UCD1Em4q90ZUK2R5HKesszJg"
