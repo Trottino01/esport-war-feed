@@ -17,7 +17,8 @@ max_age_days         = 14     # ignora i video più vecchi (vale anche al primo 
 max_posts_per_run    = 25     # gli altri restano in coda per il giro dopo, non si perdono
 skip_shorts          = true   # scarta gli YouTube Shorts
 min_duration_minutes = 4      # solo con chiave API: scarta i video più corti (le dirette non vengono toccate)
-match_description    = true   # cerca le parole chiave anche nella descrizione: più completo, qualche falso positivo in più
+match_description    = true   # cerca il TH19 anche in descrizione e tag
+esports_words_in_title_only = true   # le parole esports contano SOLO nel titolo (descrizioni piene di hashtag #esports)
 
 [filter]
 # Un video viene inoltrato se:
