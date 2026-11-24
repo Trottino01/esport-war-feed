@@ -534,6 +534,9 @@ def run_once(cfg: dict, state_path: Path, dry_run: bool = False) -> int:
         for k in dropped:
             del seen[k]
         had_search = state.pop("last_search", None)
+        if pending:   # la coda va rifatta con il nuovo filtro
+            log(f"♻️  Svuoto la coda ({len(pending)} video): verranno ricontrollati con il nuovo filtro")
+            pending.clear()
         if dropped or had_search:
             log(f"♻️  Configurazione cambiata: rifaccio la ricerca e ricontrollo {len(dropped)} video scartati prima")
         state["filter_hash"] = fhash
