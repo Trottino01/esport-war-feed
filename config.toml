@@ -22,27 +22,27 @@ match_description    = true   # cerca le parole chiave anche nella descrizione: 
 [filter]
 # Un video viene inoltrato se:
 #   • nel titolo NON c'è nessuna parola di exclude_in_title, e
-#   • titolo/descrizione/tag contengono almeno una parola di esports_keywords (guerra o esports, in più lingue), e
+#   • titolo/descrizione/tag contengono almeno una parola di esports_keywords, e
 #   • contengono il TH19 (clash_keywords), salvo i canali dedicati a CoC (clash_only = true).
+# Modalità SEVERA: solo parole che indicano davvero esports / competizioni ufficiali / scrim.
+# Le parole generiche ("war", "guerra", "friendly"...) NON bastano.
 # Maiuscole e minuscole non contano. Dopo ogni modifica il bot ricontrolla da solo i video scartati prima.
 esports_keywords = [
-  # esports / tornei
-  "esports mode", "esport mode", "e-sports mode", "modalità esports",
-  "esports", "e-sports", "esport", "e-sport",
-  "world championship", "world finals", "worlds", "clashworlds",
+  # modalità esports, in più lingue
+  "esports mode", "esport mode", "e-sports mode", "e-sport mode",
+  "modalità esports", "modalità esport", "modo esports", "modo e-sports", "mode esport", "mode e-sport",
+  "esports modus", "esports modu", "режим киберспорта",
+  "esports", "e-sports", "esport", "e-sport", "киберспорт",
+  "eスポーツ", "eスポ", "电竞", "電競", "이스포츠",
+  # competizioni ufficiali Supercell
+  "world championship", "world finals", "worlds", "clashworlds", "clash worlds",
   "monthly final", "monthly finals", "monthly qualifier", "monthly qualifiers",
   "last chance qualifier", "lcq", "golden ticket",
   "town hall cup", "town hall cups", "thc",
-  "scrim", "scrims", "pro war", "pro league", "tournament", "league",
-  # guerra / amichevole / torneo in varie lingue
-  "war", "wars", "friendly war", "fw",
-  "guerra", "guerre", "guerras", "amichevole", "amistosa", "amistoso", "amicale", "torneo", "torneio", "tournoi", "liga",
-  "krieg", "kriege", "clankrieg", "freundschaftskrieg", "turnier",
-  "война", "кв", "клановая война", "турнир",
-  "savaş", "klan savaşı", "turnuva", "perang", "turnamen",
-  "対戦", "クラン対戦", "フレンドリー", "大会", "練習試合",
-  "部落战", "友谊战", "比赛", "电竞",
-  "클랜전", "친선전", "대회", "스크림",
+  # allenamenti delle squadre pro
+  "scrim", "scrims", "скрим", "練習試合", "스크림",
+  # Togli il # qui sotto se vuoi anche i tornei della community (non sempre in modalità esports):
+  # "tournament", "torneo", "torneio", "tournoi", "turnier", "турнир", "大会", "比赛", "대회",
 ]
 
 # TH19 scritto nei modi più comuni, anche in altre lingue
@@ -70,7 +70,7 @@ queries = [
   { q = "th19", pages = 4 },                       # tutti i video TH19 recenti, fino a 200
   { q = "th19", event = "completed", pages = 2 },  # VOD delle dirette concluse
   { q = "th19", event = "live" },                  # dirette in corso (il link diventa il VOD)
-  "th19 war",
+  "th19 scrim",
   "th19 esports",
 ]
 # relevance_language = "en"
