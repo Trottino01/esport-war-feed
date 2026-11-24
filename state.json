@@ -1,856 +1,9 @@
 {
  "channel_ids": {},
- "filter_hash": "d6a96b98cca6",
+ "filter_hash": "1e689814ac90",
  "heartbeat": "2026-11-24",
- "last_search": "2026-11-24T11:24:45Z",
- "pending": {
-  "008bnZRddJg": {
-   "channel": "ClashWithBs",
-   "id": "008bnZRddJg",
-   "live": "",
-   "matched": [
-    "league",
-    "wars"
-   ],
-   "published": "2026-11-23T14:31:04Z",
-   "source": "ricerca 'th19'",
-   "title": "🔥 IMPOSSIBLE TH19 WAR Base 2026 | 99% Players Fail to 3 Star clash of clans "
-  },
-  "09Ah-hcegY0": {
-   "channel": "TheKingOf99",
-   "id": "09Ah-hcegY0",
-   "live": "",
-   "matched": [
-    "esports mode",
-    "league"
-   ],
-   "published": "2026-11-21T11:44:49Z",
-   "source": "ricerca 'th19 esports'",
-   "title": "He Came Back After 3 Years… I Gave Him TH19 Esports Mode!"
-  },
-  "0aoMB5uIXOw": {
-   "channel": "Clash With Akash",
-   "id": "0aoMB5uIXOw",
-   "live": "",
-   "matched": [
-    "league",
-    "war"
-   ],
-   "published": "2026-11-22T09:30:06Z",
-   "source": "ricerca 'th19'",
-   "title": "NEW TH19 Thrower Spam is UNSTOPPABLE After Update!! Best TH19 Attack Strategy (Clash of Clans)"
-  },
-  "39mUErmN5Fs": {
-   "channel": "Tanjeed Gaming",
-   "id": "39mUErmN5Fs",
-   "live": "",
-   "matched": [
-    "league",
-    "war"
-   ],
-   "published": "2026-11-21T11:00:03Z",
-   "source": "ricerca 'th19'",
-   "title": "Mass Balloon Squad is CRUSHING TH19 Bases! | Legend1 Attack Strategy | Clash of Clans"
-  },
-  "3OG_sh5hFwQ": {
-   "channel": "GAURAV GAMER",
-   "id": "3OG_sh5hFwQ",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-22T08:25:13Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴|LIVE| TH19 ATTACK CHALLENGE LIVE 🔥 | Friendly Challenges & Crazy 3 Stars! | Gaurav Gamer"
-  },
-  "4lD4KBilS3U": {
-   "channel": "yuta14",
-   "id": "4lD4KBilS3U",
-   "live": "",
-   "matched": [
-    "大会"
-   ],
-   "published": "2026-11-23T08:00:26Z",
-   "source": "ricerca 'th19'",
-   "title": "【TH19】ついに本命のペッカタイタン編成始動！その実力はいかに！？【クラクラ】"
-  },
-  "5Mq8cGLdBuY": {
-   "channel": "Pekka Master",
-   "id": "5Mq8cGLdBuY",
-   "live": "",
-   "matched": [
-    "league",
-    "wars"
-   ],
-   "published": "2026-11-24T06:07:03Z",
-   "source": "ricerca 'th19 war'",
-   "title": "TOP-7 PRO TH19 WAR + LEGEND BASE WITH COPY LINKS WITH REPLAY || TH19 TROPHY PUSHING ANTI 2 STAR BASE"
-  },
-  "5RSktccBeCI": {
-   "channel": "Legend Clash Lover",
-   "id": "5RSktccBeCI",
-   "live": "",
-   "matched": [
-    "tournament",
-    "league",
-    "war"
-   ],
-   "published": "2026-11-23T13:20:02Z",
-   "source": "ricerca 'th19'",
-   "title": "GLOBAL TOP TH19 LEGEND RANK 1 PLAYER BASE WITH PROOF | BEST TH19 BASE FOR WAR + CWL + RANK MODE"
-  },
-  "5rV0QHqGc30": {
-   "channel": "MileHighTV",
-   "id": "5rV0QHqGc30",
-   "live": "",
-   "matched": [
-    "league"
-   ],
-   "published": "2026-11-23T21:16:31Z",
-   "source": "ricerca 'th19'",
-   "title": "This Hydra Attack DESTROYS TH19 in Every Modifier! | Clash of Clans"
-  },
-  "6GYnuQynOMs": {
-   "channel": "Gaming Dynasty",
-   "id": "6GYnuQynOMs",
-   "live": "",
-   "matched": [
-    "league",
-    "war"
-   ],
-   "published": "2026-11-23T12:15:22Z",
-   "source": "ricerca 'th19'",
-   "title": "ONLY 1 STAR TH19 MOST POWERFUL WAR + LEGEND BASES WITH LINKS | TH19 BASE ANTI 2 STAR"
-  },
-  "6HCbabuphMU": {
-   "channel": "INDIAN CLASHER",
-   "id": "6HCbabuphMU",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-23T20:00:52Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "TH19 WAR Hits & BASE VISITS...🔥| Official Stream | #ClashofClans #ClashStore"
-  },
-  "AfjVBIzeAuI": {
-   "channel": "Akari Gaming",
-   "id": "AfjVBIzeAuI",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-22T04:25:05Z",
-   "source": "ricerca 'th19'",
-   "title": "NEW BASE TH19 Thủ War 9 Lượt Đánh WAR Không Nát Clash of clans | Akari Gaming"
-  },
-  "AlA-_wUdDis": {
-   "channel": "Gaming Dynasty",
-   "id": "AlA-_wUdDis",
-   "live": "",
-   "matched": [
-    "league",
-    "war"
-   ],
-   "published": "2026-11-22T12:15:31Z",
-   "source": "ricerca 'th19'",
-   "title": "ONLY 1 STAR TH19 MOST POWERFUL WAR + LEGEND BASES WITH LINKS || TH19 BASE ANTI 2"
-  },
-  "CC-VYdBz2-I": {
-   "channel": "COC Devil ",
-   "id": "CC-VYdBz2-I",
-   "live": "",
-   "matched": [
-    "league",
-    "war"
-   ],
-   "published": "2026-11-24T08:10:01Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "Th19 Live Legend Hits 💀🔥 || Clash of Clans || COC DEVIL"
-  },
-  "DElTle1XGKI": {
-   "channel": "Apex Gaming",
-   "id": "DElTle1XGKI",
-   "live": "",
-   "matched": [
-    "league",
-    "war"
-   ],
-   "published": "2026-11-22T08:00:20Z",
-   "source": "ricerca 'th19'",
-   "title": "INSANE NEW TH19 LEGEND 3 HIGHEST PERCENTAGE BASES | TH19 BEST TESTED HIGH DEFENSE BASES!"
-  },
-  "E7ihugypUtE": {
-   "channel": "Gaming Dynasty",
-   "id": "E7ihugypUtE",
-   "live": "",
-   "matched": [
-    "league",
-    "war"
-   ],
-   "published": "2026-11-24T06:15:21Z",
-   "source": "ricerca 'th19 war'",
-   "title": "ONLY 1 STAR TH19 MOST POWERFUL WAR + LEGEND BASES WITH LINKS || TH19 BASE ANTI 2"
-  },
-  "FHdFZdO1J8A": {
-   "channel": "JOLLY CLASH",
-   "id": "FHdFZdO1J8A",
-   "live": "",
-   "matched": [
-    "league",
-    "war"
-   ],
-   "published": "2026-11-23T13:30:28Z",
-   "source": "ricerca 'th19 war'",
-   "title": "Try These Undefeated TH19 Legend & War Bases With Replays 🔥 "
-  },
-  "GV6S-FJQl3o": {
-   "channel": "GAURAV GAMER",
-   "id": "GV6S-FJQl3o",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-21T09:35:33Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴|LIVE| TH19 ATTACK STRATEGY & UPGRADE GUIDE IN COC 😋"
-  },
-  "HkoDc1f4FzI": {
-   "channel": "elcuevas02",
-   "id": "HkoDc1f4FzI",
-   "live": "",
-   "matched": [
-    "guerra",
-    "liga"
-   ],
-   "published": "2026-11-22T21:12:35Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🚨PROBANDO FB DRAGLALO de STARS Y MAXEANDO TH19🚨 | CLASH OF CLANS #update"
-  },
-  "I_xyThCNzqw": {
-   "channel": "AMG",
-   "id": "I_xyThCNzqw",
-   "live": "",
-   "matched": [
-    "esports"
-   ],
-   "published": "2026-11-24T01:42:55Z",
-   "source": "ricerca 'th19'",
-   "title": "RC Charge E DRAGS Is CRAZY At TH19 | Clash of Clans"
-  },
-  "JE8DqLjcwI4": {
-   "channel": "TECHJVN COC",
-   "id": "JE8DqLjcwI4",
-   "live": "",
-   "matched": [
-    "league"
-   ],
-   "published": "2026-11-22T03:20:31Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴TH19 Update and L3 Attacks #coclive #cwl #scenerygiveaway"
-  },
-  "KiKW5vrdXco": {
-   "channel": "Anikilo Clash",
-   "id": "KiKW5vrdXco",
-   "live": "",
-   "matched": [
-    "guerra"
-   ],
-   "published": "2026-11-21T16:45:20Z",
-   "source": "ricerca 'th19'",
-   "title": "¿MÁXIMO NIVEL TH 19?"
-  },
-  "LT1_8V7v-Y8": {
-   "channel": "Chrisvi Land",
-   "id": "LT1_8V7v-Y8",
-   "live": "",
-   "matched": [
-    "guerras"
-   ],
-   "published": "2026-11-24T08:55:29Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "Atacando con los TH19 y TH17 | Clash of Clans | CoC gameplay en español"
-  },
-  "NPxUuZR78AQ": {
-   "channel": "Style_coc",
-   "id": "NPxUuZR78AQ",
-   "live": "",
-   "matched": [
-    "esports"
-   ],
-   "published": "2026-11-21T22:27:51Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴 LIVE | EL DESAFÍO HISPANO: SHOWMATCH TH19 ENTRE los MEJORES JUGADORES de la COMUNIDAD"
-  },
-  "NaV0quzN1O4": {
-   "channel": "INDIAN CLASHER",
-   "id": "NaV0quzN1O4",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-21T20:17:03Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "TH19 WAR Hits & BASE VISITS...🔥| Official Stream | #ClashofClans #ClashStore"
-  },
-  "O4yYq64Pshw": {
-   "channel": "Base Pro",
-   "id": "O4yYq64Pshw",
-   "live": "",
-   "matched": [
-    "wars"
-   ],
-   "published": "2026-11-21T11:38:57Z",
-   "source": "ricerca 'th19'",
-   "title": "🔥IMPOSSIBLE TO 3-STAR? INSANE TH19 WAR BASES | Clash of Clans"
-  },
-  "QEykFVv7wvs": {
-   "channel": "Sply 97",
-   "id": "QEykFVv7wvs",
-   "live": "",
-   "matched": [
-    "clashworlds",
-    "league",
-    "wars",
-    "guerras"
-   ],
-   "published": "2026-11-22T09:13:00Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴EL ASALTO SUPREMO TH19 | NUEVA DINÁMICA EN EL CANAL - PAISAJE EN JUEGO"
-  },
-  "QleZj-LXcrs": {
-   "channel": "Opi",
-   "id": "QleZj-LXcrs",
-   "live": "",
-   "matched": [
-    "league"
-   ],
-   "published": "2026-11-21T13:31:33Z",
-   "source": "ricerca 'th19'",
-   "title": "Best super bowlers attack Strategy With Queen Charge attack after TH19 update"
-  },
-  "SGxg1rKVT5k": {
-   "channel": "elcuevas02",
-   "id": "SGxg1rKVT5k",
-   "live": "",
-   "matched": [
-    "guerra",
-    "liga"
-   ],
-   "published": "2026-11-22T00:05:08Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🚨PROBANDO EJÉRCITOS Y MAXEANDO TH19🚨 | CLASH OF CLANS #update"
-  },
-  "SN2CtNQqNIo": {
-   "channel": "Michael329",
-   "id": "SN2CtNQqNIo",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-21T11:45:55Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴 TH19 Grind / War Hits   #clashofclans #ccpartner @ClashChamps"
-  },
-  "Sh78jvx-bGU": {
-   "channel": "Quang Hiển IDOL",
-   "id": "Sh78jvx-bGU",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-24T01:16:40Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴LIVE: Game CLASH OF CLANS Có Gì Vui? TH19 WAR Có Khác TH18 WAR 🥰 Clash of Clans"
-  },
-  "Tmfo5fwiar4": {
-   "channel": "Quang Hiển IDOL",
-   "id": "Tmfo5fwiar4",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-22T01:12:05Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴LIVE: Tuyển Mem TH18 TH19 WAR? TH19 WAR Có Khác TH18 WAR 🥰 Clash of Clans"
-  },
-  "UN2KRBxyFtA": {
-   "channel": "Marosan",
-   "id": "UN2KRBxyFtA",
-   "live": "",
-   "matched": [
-    "liga"
-   ],
-   "published": "2026-11-24T08:10:16Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "Ataque en liga leyenda III - COC TH19"
-  },
-  "UoIHR6E2Nl8": {
-   "channel": "Style_coc",
-   "id": "UoIHR6E2Nl8",
-   "live": "",
-   "matched": [
-    "esports",
-    "guerras"
-   ],
-   "published": "2026-11-22T17:06:01Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴 LIVE | PRIMERAS GUERRAS ASIÁTICAS de TH19: G3 ESPORTS 🆚 ARES - CR7 ESPORTS 🆚 TRX ESPORTS | TDL CUP"
-  },
-  "WRlpMq8PTuQ": {
-   "channel": "yuta14",
-   "id": "WRlpMq8PTuQ",
-   "live": "",
-   "matched": [
-    "大会"
-   ],
-   "published": "2026-11-22T03:30:34Z",
-   "source": "ricerca 'th19'",
-   "title": "【TH19】あのバグの対応結果が届きました…まさかの結末に絶句【クラクラ】"
-  },
-  "WdCF_-5XH9g": {
-   "channel": "Dreamland COC",
-   "id": "WdCF_-5XH9g",
-   "live": "",
-   "matched": [
-    "league",
-    "wars"
-   ],
-   "published": "2026-11-23T12:28:36Z",
-   "source": "ricerca 'th19 war'",
-   "title": "🔥 TH19 BEST WAR BASES! 🏆 Top 12 Hard CWL Base Layouts + Copy Links | Clash of Clans"
-  },
-  "_KO14VLKEGU": {
-   "channel": "Opi",
-   "id": "_KO14VLKEGU",
-   "live": "",
-   "matched": [
-    "league"
-   ],
-   "published": "2026-11-23T16:47:39Z",
-   "source": "ricerca 'th19'",
-   "title": "TOP 3 BROKEN TH19 ATTACK STRATEGIES! Crush Every Max Base • Clash of Clans"
-  },
-  "_cyYhWo9aro": {
-   "channel": "ClashWithBs",
-   "id": "_cyYhWo9aro",
-   "live": "",
-   "matched": [
-    "league",
-    "wars"
-   ],
-   "published": "2026-11-22T08:30:24Z",
-   "source": "ricerca 'th19'",
-   "title": "🔥 IMPOSSIBLE TO 3 STAR?! 😈 TH19 WAR BASE | ANTI 3 STAR BASE 2026 ⚔️!"
-  },
-  "aL2IdQtuHi4": {
-   "channel": "ChessMan Gaming",
-   "id": "aL2IdQtuHi4",
-   "live": "",
-   "matched": [
-    "esports",
-    "tournament",
-    "wars"
-   ],
-   "published": "2026-11-21T12:03:00Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴TH19 bases visit & recruit | Scenery Giveaway and rewards🎁💸 | Clash of Clans"
-  },
-  "bSI1kLDOgp0": {
-   "channel": "Clash with kakashi",
-   "id": "bSI1kLDOgp0",
-   "live": "",
-   "matched": [
-    "esports",
-    "war"
-   ],
-   "published": "2026-11-23T22:36:54Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "TH19 ESPORTS PRACTICE // #Clashofclans #Coc"
-  },
-  "bXtYhn9ImjA": {
-   "channel": "Tanjeed Gaming",
-   "id": "bXtYhn9ImjA",
-   "live": "",
-   "matched": [
-    "league",
-    "war"
-   ],
-   "published": "2026-11-23T10:56:01Z",
-   "source": "ricerca 'th19'",
-   "title": "Queen Arrow + Duke Backpack MASS BALLOON SQUAD! | TH19 Legend1 Attack Strategy | Clash of Clans"
-  },
-  "bbun6g0xKH8": {
-   "channel": "Quang Hiển IDOL",
-   "id": "bbun6g0xKH8",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-23T01:35:19Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴LIVE: Tuyển Mem TH18 TH19 WAR? TH19 WAR Có Khác TH18 WAR 🥰 Clash of Clans"
-  },
-  "cXqgEhNGipE": {
-   "channel": "Clash With Kash",
-   "id": "cXqgEhNGipE",
-   "live": "",
-   "matched": [
-    "tournament",
-    "league",
-    "war"
-   ],
-   "published": "2026-11-21T12:30:36Z",
-   "source": "ricerca 'th19'",
-   "title": "*NEVER 3 STAR*🔥TOWN HALL 19 Th19 WAR BASE With Link | TH19 LEGEND Base With Link | Clash of clans"
-  },
-  "cbnX9LqhGEo": {
-   "channel": "Clash With Akash",
-   "id": "cbnX9LqhGEo",
-   "live": "",
-   "matched": [
-    "league",
-    "war"
-   ],
-   "published": "2026-11-23T10:30:27Z",
-   "source": "ricerca 'th19'",
-   "title": "NEW TH19 Dragon Spam is UNSTOPPABLE After Update!! Best TH19 Attack Strategy (Clash of Clans)"
-  },
-  "drIc2BScaIU": {
-   "channel": "DONBLACK ",
-   "id": "drIc2BScaIU",
-   "live": "",
-   "matched": [
-    "tournament",
-    "wars"
-   ],
-   "published": "2026-11-23T02:33:24Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "CLASH OF CLANS KING OF THE HILL 2026 👑 | TH19 SPECIAL TOURNAMENT IS HERE!"
-  },
-  "e-OrqeI0J-s": {
-   "channel": "RKx. Akash YT",
-   "id": "e-OrqeI0J-s",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-23T18:13:28Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "CLAN WAR ATTACK LIVE 🔥 | TH19 War Gameplay | Clash of Clans"
-  },
-  "fexs5ww2YQ4": {
-   "channel": "Style_coc",
-   "id": "fexs5ww2YQ4",
-   "live": "",
-   "matched": [
-    "esports"
-   ],
-   "published": "2026-11-23T16:00:08Z",
-   "source": "ricerca 'th19'",
-   "title": "🤯 CREÉ un NUEVO EJÉRCITO IMPARABLE que NADIE ESPERABA VER en TH19"
-  },
-  "hvmC2yPNjCA": {
-   "channel": "Choton Mukherje",
-   "id": "hvmC2yPNjCA",
-   "live": "",
-   "matched": [
-    "esports",
-    "league",
-    "friendly war"
-   ],
-   "published": "2026-11-23T19:23:03Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴 COC LIVE Day 240 TH19 Upgrade Full Review + Wall Max | Base Visit + Clan Games"
-  },
-  "i5cv1ZPTqlk": {
-   "channel": "RKx. Akash YT",
-   "id": "i5cv1ZPTqlk",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-21T09:54:16Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "TH19 Normal Clan War LIVE 🔥 | Clash of Clans War Gameplay"
-  },
-  "jE4DTfNEXbc": {
-   "channel": "ChessMan Gaming",
-   "id": "jE4DTfNEXbc",
-   "live": "",
-   "matched": [
-    "esports",
-    "tournament",
-    "wars"
-   ],
-   "published": "2026-11-23T20:45:18Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴TH19 bases visit & recruit | Catch Pokémon! win Gold  Pass | Clash of Clans..."
-  },
-  "jWCP8Ahsej4": {
-   "channel": "Aan Kancil",
-   "id": "jWCP8Ahsej4",
-   "live": "",
-   "matched": [
-    "esports",
-    "league",
-    "war"
-   ],
-   "published": "2026-11-22T01:51:00Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴[LIVE] War Klasik TH19 | Clash of Clans"
-  },
-  "jZd421Oosxw": {
-   "channel": "yuta14",
-   "id": "jZd421Oosxw",
-   "live": "",
-   "matched": [
-    "大会"
-   ],
-   "published": "2026-11-23T12:00:06Z",
-   "source": "ricerca 'th19'",
-   "title": "【TH19】大逆風のスピアスローワーでレジェンドⅡ昇格に挑戦！通用するの？【クラクラ】"
-  },
-  "jp97EBx9qks": {
-   "channel": "CrusherGamingYT",
-   "id": "jp97EBx9qks",
-   "live": "",
-   "matched": [
-    "league"
-   ],
-   "published": "2026-11-24T02:30:33Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "Base Visiting And TH19 Upgrades LIVE | Clash Of Clans #Clashofclanslive #coc"
-  },
-  "lOyY1ndBA7E": {
-   "channel": "けいすけ実況局",
-   "id": "lOyY1ndBA7E",
-   "live": "",
-   "matched": [
-    "大会"
-   ],
-   "published": "2026-11-22T09:00:12Z",
-   "source": "ricerca 'th19'",
-   "title": "【クラクラ】TH16最強編成でTH19全壊wTH19アプデ後もTH16の最強戦術はスピアスローワーだったwTH16の攻め方を見せるわw"
-  },
-  "l_sejJ225IU": {
-   "channel": "COC Devil ",
-   "id": "l_sejJ225IU",
-   "live": "",
-   "matched": [
-    "league",
-    "war"
-   ],
-   "published": "2026-11-22T18:13:05Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "Th19 Upgrades and New army trial🔥 || Clash of Clans || COC DEVIL"
-  },
-  "lfvIshuZ2PU": {
-   "channel": "Mahdi coc",
-   "id": "lfvIshuZ2PU",
-   "live": "",
-   "matched": [
-    "tournament",
-    "league",
-    "wars"
-   ],
-   "published": "2026-11-21T11:00:22Z",
-   "source": "ricerca 'th19'",
-   "title": "This New Army is BROKEN! 3-Star TH19 Easily 🤯 Hydra attack strategy"
-  },
-  "m2bjkpvlC9g": {
-   "channel": "Ace",
-   "id": "m2bjkpvlC9g",
-   "live": "",
-   "matched": [
-    "league"
-   ],
-   "published": "2026-11-23T12:00:40Z",
-   "source": "ricerca 'th19'",
-   "title": "The BEST ARMY At TH19 For Easy 3 Stars Every Time! (Guide)"
-  },
-  "mtobN8EluWQ": {
-   "channel": "INDIAN CLASHER",
-   "id": "mtobN8EluWQ",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-22T19:59:19Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "TH19 LEGEND HITS & BASE VISITS...🔥| Official Stream | #ClashofClans #ClashStore"
-  },
-  "pT8vRx62RKg": {
-   "channel": "AMG",
-   "id": "pT8vRx62RKg",
-   "live": "",
-   "matched": [
-    "esports"
-   ],
-   "published": "2026-11-22T03:00:24Z",
-   "source": "ricerca 'th19'",
-   "title": "Balloon SQUAD Is INSANE At TH19! | Clash of Clans"
-  },
-  "pVEFYw3xpsQ": {
-   "channel": "Style_coc",
-   "id": "pVEFYw3xpsQ",
-   "live": "",
-   "matched": [
-    "esports"
-   ],
-   "published": "2026-11-23T22:23:20Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴 LIVE | GUERRAZA TOP de TH19: VEXX 🆚 TEAM WINTER | RO32 - TDL LEGACY CUP"
-  },
-  "qPTDOQP4Cvg": {
-   "channel": "DRAGON SLAYER YT",
-   "id": "qPTDOQP4Cvg",
-   "live": "",
-   "matched": [
-    "league"
-   ],
-   "published": "2026-11-23T05:28:08Z",
-   "source": "ricerca 'th19'",
-   "title": "⚔️💥TH19 BEST STRATEGY! 😱 Legend 1 Rank Push +40 +40 | Crazy Army #clashofclans #legend "
-  },
-  "qRT3nXOuk5A": {
-   "channel": "Dominic_Cv",
-   "id": "qRT3nXOuk5A",
-   "live": "",
-   "matched": [
-    "esports",
-    "tournament"
-   ],
-   "published": "2026-11-21T20:11:35Z",
-   "source": "ricerca 'th19 esports'",
-   "title": "TH19 META is UNSTOPPABLE! Even in eSports!⚡|  Dominic⚡CV™⚡"
-  },
-  "qzHvzpz0Zh8": {
-   "channel": "COC Devil ",
-   "id": "qzHvzpz0Zh8",
-   "live": "",
-   "matched": [
-    "league",
-    "war"
-   ],
-   "published": "2026-11-21T09:54:50Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "Th19 Upgrades and New army trial🔥 || Clash of Clans || COC DEVIL"
-  },
-  "sT5n3D-cCYE": {
-   "channel": "けいすけ実況局",
-   "id": "sT5n3D-cCYE",
-   "live": "",
-   "matched": [
-    "大会"
-   ],
-   "published": "2026-11-22T11:00:21Z",
-   "source": "ricerca 'th19'",
-   "title": "【クラクラ】配置リンク付き！TH19最強配置でレジェンド星１防衛w高火力区画でユニットどんどん溶けるんだけどw"
-  },
-  "t2HHy7Lu0Zg": {
-   "channel": "Al Amin coc Tricks",
-   "id": "t2HHy7Lu0Zg",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-22T04:29:47Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴 LIVE NOW! TH19 Update Gameplay 😱 New Troops, Epic Attacks & More! | Clash of Clans Live"
-  },
-  "tsCMTFsKA8k": {
-   "channel": "Base Pro",
-   "id": "tsCMTFsKA8k",
-   "live": "",
-   "matched": [
-    "wars"
-   ],
-   "published": "2026-11-22T13:54:27Z",
-   "source": "ricerca 'th19'",
-   "title": "TH19 NEW META WAR BASES 🔥 INSANE Anti 3-Star Designs | Clash of Clans"
-  },
-  "u7OT7d9VcWM": {
-   "channel": "Geka 25",
-   "id": "u7OT7d9VcWM",
-   "live": "",
-   "matched": [
-    "clashworlds",
-    "tournament"
-   ],
-   "published": "2026-11-23T05:54:56Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "🔴LIVE - TOURNAMENT GLOBAL COC - TH19 PRO MATCH - CLASH OF CLANS"
-  },
-  "ulHFjL04fdk": {
-   "channel": "RKx. Akash YT",
-   "id": "ulHFjL04fdk",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-21T23:53:23Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "TH19 Normal Clan War LIVE 🔥 | Clash of Clans War Gameplay"
-  },
-  "v6NaplksX6E": {
-   "channel": "QUEENSKILL",
-   "id": "v6NaplksX6E",
-   "live": "",
-   "matched": [
-    "friendly war"
-   ],
-   "published": "2026-11-23T08:59:20Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "TH19 Is Here With Queenskill 🔴|| Base visits and Friendly war #clashofclans #shortsfeed"
-  },
-  "vfC8t_jQZko": {
-   "channel": "RKx. Akash YT",
-   "id": "vfC8t_jQZko",
-   "live": "",
-   "matched": [
-    "war"
-   ],
-   "published": "2026-11-23T22:59:45Z",
-   "source": "ricerca 'th19' (dirette concluse)",
-   "title": "CLAN WAR ATTACK LIVE 🔥 | TH19 War Gameplay | Clash of Clans"
-  },
-  "wxi8EY3sz2k": {
-   "channel": "Ace",
-   "id": "wxi8EY3sz2k",
-   "live": "",
-   "matched": [
-    "league",
-    "wars"
-   ],
-   "published": "2026-11-22T12:00:38Z",
-   "source": "ricerca 'th19'",
-   "title": "INSANE Defences With This NEW Anti-Meta TH19 Base!"
-  },
-  "y2Prjsvf90E": {
-   "channel": "Clash of Clans",
-   "id": "y2Prjsvf90E",
-   "live": "",
-   "matched": [
-    "wars"
-   ],
-   "published": "2026-11-23T13:00:08Z",
-   "source": "ricerca 'th19'",
-   "title": "Building the Squad | Making of TH19 | Episode 1"
-  },
-  "yMZGtdQJvJg": {
-   "channel": "ZOD GAMING",
-   "id": "yMZGtdQJvJg",
-   "live": "",
-   "matched": [
-    "league",
-    "wars"
-   ],
-   "published": "2026-11-24T04:23:36Z",
-   "source": "ricerca 'th19 war'",
-   "title": "Top3 Best Th19 Attack Strategy/ Th19 War Attack Strategy Clash Of Clans "
-  }
- },
+ "last_search": "2026-11-24T11:30:06Z",
+ "pending": {},
  "seen": {
   "--biqJeAjYk": [
    "skip",
@@ -868,6 +21,10 @@
    "short",
    "2026-11-24"
   ],
+  "-ayo1PWP-Fg": [
+   "skip",
+   "2026-11-24"
+  ],
   "-bS05772C5Y": [
    "skip",
    "2026-11-24"
@@ -880,8 +37,24 @@
    "short",
    "2026-11-24"
   ],
+  "008bnZRddJg": [
+   "skip",
+   "2026-11-24"
+  ],
+  "09Ah-hcegY0": [
+   "posted",
+   "2026-11-24"
+  ],
   "0GiTAr3-SAo": [
    "short",
+   "2026-11-24"
+  ],
+  "0My8cue8u7E": [
+   "short",
+   "2026-11-24"
+  ],
+  "0aoMB5uIXOw": [
+   "skip",
    "2026-11-24"
   ],
   "0cW12Ng0aGs": [
@@ -890,10 +63,6 @@
   ],
   "0ycpVRzkIRw": [
    "short",
-   "2026-11-24"
-  ],
-  "1I7j6qVN7Hs": [
-   "skip",
    "2026-11-24"
   ],
   "1Xk0UGwSDns": [
@@ -920,7 +89,23 @@
    "skip",
    "2026-11-24"
   ],
+  "2yHuLxAOBHM": [
+   "skip",
+   "2026-11-24"
+  ],
   "39P830QRUWI": [
+   "skip",
+   "2026-11-24"
+  ],
+  "39mUErmN5Fs": [
+   "skip",
+   "2026-11-24"
+  ],
+  "3AyBunoKOkg": [
+   "short",
+   "2026-11-24"
+  ],
+  "3OG_sh5hFwQ": [
    "skip",
    "2026-11-24"
   ],
@@ -960,6 +145,14 @@
    "short",
    "2026-11-24"
   ],
+  "4lD4KBilS3U": [
+   "skip",
+   "2026-11-24"
+  ],
+  "4rraiJi_1RM": [
+   "skip",
+   "2026-11-24"
+  ],
   "53BjQTHygOI": [
    "skip",
    "2026-11-24"
@@ -980,12 +173,28 @@
    "short",
    "2026-11-24"
   ],
+  "5RSktccBeCI": [
+   "skip",
+   "2026-11-24"
+  ],
   "5VyYiDzujnQ": [
    "skip",
    "2026-11-24"
   ],
   "5lATHU8RSRo": [
    "short",
+   "2026-11-24"
+  ],
+  "5rV0QHqGc30": [
+   "skip",
+   "2026-11-24"
+  ],
+  "6GYnuQynOMs": [
+   "skip",
+   "2026-11-24"
+  ],
+  "6HCbabuphMU": [
+   "skip",
    "2026-11-24"
   ],
   "6JO6sOB7Vz0": [
@@ -1052,7 +261,15 @@
    "short",
    "2026-11-24"
   ],
+  "AfjVBIzeAuI": [
+   "skip",
+   "2026-11-24"
+  ],
   "AgM6QAbqYiE": [
+   "skip",
+   "2026-11-24"
+  ],
+  "AlA-_wUdDis": [
    "skip",
    "2026-11-24"
   ],
@@ -1068,12 +285,12 @@
    "short",
    "2026-11-24"
   ],
-  "B_T06MCZzH0": [
-   "skip",
-   "2026-11-24"
-  ],
   "C8IFkZPUk0g": [
    "short",
+   "2026-11-24"
+  ],
+  "CC-VYdBz2-I": [
+   "skip",
    "2026-11-24"
   ],
   "CMeVz5ZHF0o": [
@@ -1084,11 +301,23 @@
    "short",
    "2026-11-24"
   ],
+  "CZw0pGq8pcM": [
+   "short",
+   "2026-11-24"
+  ],
   "CtkFnV8HCh4": [
    "skip",
    "2026-11-24"
   ],
   "D-8wrLZCIac": [
+   "short",
+   "2026-11-24"
+  ],
+  "DElTle1XGKI": [
+   "skip",
+   "2026-11-24"
+  ],
+  "DIm-56qxGLc": [
    "short",
    "2026-11-24"
   ],
@@ -1120,6 +349,10 @@
    "short",
    "2026-11-24"
   ],
+  "GV6S-FJQl3o": [
+   "skip",
+   "2026-11-24"
+  ],
   "GmRFA2Ty2is": [
    "skip",
    "2026-11-24"
@@ -1140,6 +373,10 @@
    "skip",
    "2026-11-24"
   ],
+  "HkoDc1f4FzI": [
+   "skip",
+   "2026-11-24"
+  ],
   "Hs48C_z7PR8": [
    "short",
    "2026-11-24"
@@ -1152,7 +389,15 @@
    "short",
    "2026-11-24"
   ],
+  "IRDPRKy4YXE": [
+   "short",
+   "2026-11-24"
+  ],
   "IXo-IYsVjyc": [
+   "posted",
+   "2026-11-24"
+  ],
+  "I_xyThCNzqw": [
    "posted",
    "2026-11-24"
   ],
@@ -1168,8 +413,16 @@
    "short",
    "2026-11-24"
   ],
+  "JE8DqLjcwI4": [
+   "skip",
+   "2026-11-24"
+  ],
   "JKfqAOZB4JY": [
    "short",
+   "2026-11-24"
+  ],
+  "JP0M6hMvh9Q": [
+   "skip",
    "2026-11-24"
   ],
   "JRF5oV1capM": [
@@ -1192,8 +445,16 @@
    "short",
    "2026-11-24"
   ],
+  "KGbR1mmjTjg": [
+   "short",
+   "2026-11-24"
+  ],
   "KHPbK4vbW1E": [
    "short",
+   "2026-11-24"
+  ],
+  "KiKW5vrdXco": [
+   "skip",
    "2026-11-24"
   ],
   "KponAk7xsmg": [
@@ -1201,6 +462,10 @@
    "2026-11-24"
   ],
   "KrT4gSKsAPQ": [
+   "skip",
+   "2026-11-24"
+  ],
+  "LT1_8V7v-Y8": [
    "skip",
    "2026-11-24"
   ],
@@ -1244,7 +509,19 @@
    "skip",
    "2026-11-24"
   ],
+  "NPxUuZR78AQ": [
+   "posted",
+   "2026-11-24"
+  ],
+  "NaV0quzN1O4": [
+   "skip",
+   "2026-11-24"
+  ],
   "Nk1ZspyLBVM": [
+   "skip",
+   "2026-11-24"
+  ],
+  "O4yYq64Pshw": [
    "skip",
    "2026-11-24"
   ],
@@ -1300,8 +577,24 @@
    "posted",
    "2026-11-24"
   ],
+  "QEykFVv7wvs": [
+   "posted",
+   "2026-11-24"
+  ],
   "Qe5VaAqkisM": [
    "short",
+   "2026-11-24"
+  ],
+  "QleZj-LXcrs": [
+   "skip",
+   "2026-11-24"
+  ],
+  "QweeYYPP73c": [
+   "skip",
+   "2026-11-24"
+  ],
+  "QyOyasb4qjU": [
+   "skip",
    "2026-11-24"
   ],
   "R31rl-4Gdu4": [
@@ -1336,6 +629,14 @@
    "short",
    "2026-11-24"
   ],
+  "SGxg1rKVT5k": [
+   "skip",
+   "2026-11-24"
+  ],
+  "SN2CtNQqNIo": [
+   "skip",
+   "2026-11-24"
+  ],
   "SQxHRGOJF_4": [
    "skip",
    "2026-11-24"
@@ -1348,7 +649,15 @@
    "skip",
    "2026-11-24"
   ],
+  "Sh78jvx-bGU": [
+   "skip",
+   "2026-11-24"
+  ],
   "So4WotqifII": [
+   "short",
+   "2026-11-24"
+  ],
+  "T2XvvRsiJf4": [
    "short",
    "2026-11-24"
   ],
@@ -1360,6 +669,14 @@
    "skip",
    "2026-11-24"
   ],
+  "Tmfo5fwiar4": [
+   "skip",
+   "2026-11-24"
+  ],
+  "Tz3qGHufqKg": [
+   "skip",
+   "2026-11-24"
+  ],
   "TzITym8rNFE": [
    "short",
    "2026-11-24"
@@ -1368,8 +685,16 @@
    "short",
    "2026-11-24"
   ],
+  "UN2KRBxyFtA": [
+   "skip",
+   "2026-11-24"
+  ],
   "UVwt8qEW1Ng": [
    "skip",
+   "2026-11-24"
+  ],
+  "UoIHR6E2Nl8": [
+   "posted",
    "2026-11-24"
   ],
   "VHNOcsaRPzU": [
@@ -1389,6 +714,10 @@
    "2026-11-24"
   ],
   "W7ERhmSrUZU": [
+   "skip",
+   "2026-11-24"
+  ],
+  "WRlpMq8PTuQ": [
    "skip",
    "2026-11-24"
   ],
@@ -1428,10 +757,6 @@
    "short",
    "2026-11-24"
   ],
-  "YEwoUf_9Mdw": [
-   "skip",
-   "2026-11-24"
-  ],
   "YgzwIfXs_Dc": [
    "short",
    "2026-11-24"
@@ -1452,12 +777,20 @@
    "short",
    "2026-11-24"
   ],
+  "_KO14VLKEGU": [
+   "skip",
+   "2026-11-24"
+  ],
   "_ZT_VGf0qTg": [
    "skip",
    "2026-11-24"
   ],
   "_aIXdtsKyKE": [
    "short",
+   "2026-11-24"
+  ],
+  "_cyYhWo9aro": [
+   "skip",
    "2026-11-24"
   ],
   "_lTlue51sTo": [
@@ -1470,6 +803,10 @@
   ],
   "aCnvJppU5CQ": [
    "skip",
+   "2026-11-24"
+  ],
+  "aL2IdQtuHi4": [
+   "posted",
    "2026-11-24"
   ],
   "abyyCHudmAk": [
@@ -1488,11 +825,23 @@
    "short",
    "2026-11-24"
   ],
+  "b4JSg3Z53NM": [
+   "skip",
+   "2026-11-24"
+  ],
   "bJx6dDUtL4g": [
    "short",
    "2026-11-24"
   ],
-  "bXgyIftMThA": [
+  "bSI1kLDOgp0": [
+   "posted",
+   "2026-11-24"
+  ],
+  "bXtYhn9ImjA": [
+   "skip",
+   "2026-11-24"
+  ],
+  "bbun6g0xKH8": [
    "skip",
    "2026-11-24"
   ],
@@ -1516,11 +865,15 @@
    "short",
    "2026-11-24"
   ],
+  "cXqgEhNGipE": [
+   "skip",
+   "2026-11-24"
+  ],
   "caW1c0oIMRY": [
    "posted",
    "2026-11-24"
   ],
-  "clBev7sh5mU": [
+  "cbnX9LqhGEo": [
    "skip",
    "2026-11-24"
   ],
@@ -1542,6 +895,14 @@
   ],
   "dhlLIvDMINM": [
    "short",
+   "2026-11-24"
+  ],
+  "drIc2BScaIU": [
+   "skip",
+   "2026-11-24"
+  ],
+  "e-OrqeI0J-s": [
+   "skip",
    "2026-11-24"
   ],
   "e1sk5RKsdSY": [
@@ -1566,6 +927,10 @@
   ],
   "fbIWr4jYOkA": [
    "short",
+   "2026-11-24"
+  ],
+  "fexs5ww2YQ4": [
+   "posted",
    "2026-11-24"
   ],
   "fhI4oXPfZRg": [
@@ -1620,6 +985,10 @@
    "skip",
    "2026-11-24"
   ],
+  "gfvPGw29YHA": [
+   "skip",
+   "2026-11-24"
+  ],
   "gt4obDvkQwU": [
    "short",
    "2026-11-24"
@@ -1640,6 +1009,14 @@
    "short",
    "2026-11-24"
   ],
+  "hvmC2yPNjCA": [
+   "posted",
+   "2026-11-24"
+  ],
+  "i5cv1ZPTqlk": [
+   "skip",
+   "2026-11-24"
+  ],
   "iVFGx1XfVQ8": [
    "short",
    "2026-11-24"
@@ -1656,6 +1033,10 @@
    "short",
    "2026-11-24"
   ],
+  "jE4DTfNEXbc": [
+   "posted",
+   "2026-11-24"
+  ],
   "jKFi_J9Wijs": [
    "short",
    "2026-11-24"
@@ -1664,8 +1045,16 @@
    "short",
    "2026-11-24"
   ],
+  "jWCP8Ahsej4": [
+   "posted",
+   "2026-11-24"
+  ],
   "jWTJGxQ4uic": [
    "short",
+   "2026-11-24"
+  ],
+  "jZd421Oosxw": [
+   "skip",
    "2026-11-24"
   ],
   "jfsAF0Me3G0": [
@@ -1674,6 +1063,10 @@
   ],
   "jlwlORcioh0": [
    "posted",
+   "2026-11-24"
+  ],
+  "jp97EBx9qks": [
+   "skip",
    "2026-11-24"
   ],
   "k0vMHmn2H-Q": [
@@ -1688,6 +1081,14 @@
    "short",
    "2026-11-24"
   ],
+  "l08W78zOV0o": [
+   "posted",
+   "2026-11-24"
+  ],
+  "lOyY1ndBA7E": [
+   "skip",
+   "2026-11-24"
+  ],
   "lTeUc9aAJdA": [
    "short",
    "2026-11-24"
@@ -1698,6 +1099,14 @@
   ],
   "lVhjoDIah74": [
    "short",
+   "2026-11-24"
+  ],
+  "l_sejJ225IU": [
+   "skip",
+   "2026-11-24"
+  ],
+  "lfvIshuZ2PU": [
+   "skip",
    "2026-11-24"
   ],
   "lhQFVPql1HM": [
@@ -1720,6 +1129,10 @@
    "skip",
    "2026-11-24"
   ],
+  "m2bjkpvlC9g": [
+   "skip",
+   "2026-11-24"
+  ],
   "m30BazBSvN4": [
    "posted",
    "2026-11-24"
@@ -1734,6 +1147,10 @@
   ],
   "mrqTMT9rv0c": [
    "short",
+   "2026-11-24"
+  ],
+  "mtobN8EluWQ": [
+   "skip",
    "2026-11-24"
   ],
   "mvaEOVPppYA": [
@@ -1760,10 +1177,6 @@
    "posted",
    "2026-11-24"
   ],
-  "nxdDlaDS_eU": [
-   "skip",
-   "2026-11-24"
-  ],
   "oMiPYj-3F8I": [
    "skip",
    "2026-11-24"
@@ -1774,6 +1187,14 @@
   ],
   "pH5WGQ5l4cA": [
    "skip",
+   "2026-11-24"
+  ],
+  "pT8vRx62RKg": [
+   "posted",
+   "2026-11-24"
+  ],
+  "pVEFYw3xpsQ": [
+   "posted",
    "2026-11-24"
   ],
   "pliUOPhAIaU": [
@@ -1790,6 +1211,22 @@
   ],
   "qDhQ8ygjpPQ": [
    "skip",
+   "2026-11-24"
+  ],
+  "qPTDOQP4Cvg": [
+   "skip",
+   "2026-11-24"
+  ],
+  "qRT3nXOuk5A": [
+   "posted",
+   "2026-11-24"
+  ],
+  "qzHvzpz0Zh8": [
+   "skip",
+   "2026-11-24"
+  ],
+  "rKrl408HsFU": [
+   "posted",
    "2026-11-24"
   ],
   "rZysWoZt8Qs": [
@@ -1828,6 +1265,10 @@
    "posted",
    "2026-11-24"
   ],
+  "sT5n3D-cCYE": [
+   "skip",
+   "2026-11-24"
+  ],
   "sWIabVgM_hY": [
    "short",
    "2026-11-24"
@@ -1836,8 +1277,16 @@
    "short",
    "2026-11-24"
   ],
+  "scduNstk6MA": [
+   "skip",
+   "2026-11-24"
+  ],
   "sxcEW1p1yoI": [
    "short",
+   "2026-11-24"
+  ],
+  "t2HHy7Lu0Zg": [
+   "skip",
    "2026-11-24"
   ],
   "t5k1M4HgSzM": [
@@ -1864,12 +1313,16 @@
    "skip",
    "2026-11-24"
   ],
-  "uLbrk41RH44": [
-   "short",
+  "tsCMTFsKA8k": [
+   "skip",
    "2026-11-24"
   ],
-  "uP6CdyU6OnA": [
-   "skip",
+  "u7OT7d9VcWM": [
+   "posted",
+   "2026-11-24"
+  ],
+  "uLbrk41RH44": [
+   "short",
    "2026-11-24"
   ],
   "uPrswlnc2JU": [
@@ -1892,12 +1345,20 @@
    "short",
    "2026-11-24"
   ],
+  "ulHFjL04fdk": [
+   "skip",
+   "2026-11-24"
+  ],
   "ulyGCKYdqeo": [
    "skip",
    "2026-11-24"
   ],
   "v2K-BV2WADc": [
    "short",
+   "2026-11-24"
+  ],
+  "v6NaplksX6E": [
+   "skip",
    "2026-11-24"
   ],
   "vHN4scOvK1I": [
@@ -1910,6 +1371,10 @@
   ],
   "v_daN6QSZl0": [
    "short",
+   "2026-11-24"
+  ],
+  "vfC8t_jQZko": [
+   "skip",
    "2026-11-24"
   ],
   "vlVOSU1en-Y": [
@@ -1944,6 +1409,10 @@
    "short",
    "2026-11-24"
   ],
+  "wxi8EY3sz2k": [
+   "skip",
+   "2026-11-24"
+  ],
   "x1ratz5XeEM": [
    "skip",
    "2026-11-24"
@@ -1968,8 +1437,16 @@
    "skip",
    "2026-11-24"
   ],
+  "xtly7jMF9cs": [
+   "skip",
+   "2026-11-24"
+  ],
   "y0KRhAQn_Eo": [
    "short",
+   "2026-11-24"
+  ],
+  "y2Prjsvf90E": [
+   "skip",
    "2026-11-24"
   ],
   "yB2AWV9bZ7U": [
