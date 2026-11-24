@@ -404,28 +404,33 @@ def compile_keywords(words) -> list[tuple[str, re.Pattern]]:
 
 
 class Matcher:
-    def __init__(self, fcfg: dict, match_description: bool):
+    def __init__(self, fcfg: dict, match_description: bool, esports_in_title_only: bool = True):
         self.esports = compile_keywords(fcfg.get("esports_keywords"))
         self.clash = compile_keywords(fcfg.get("clash_keywords"))
         self.exclude = compile_keywords(fcfg.get("exclude_in_title"))
         self.match_description = match_description
+        self.esports_in_title_only = esports_in_title_only
 
     def check(self, v: Video) -> tuple[bool, list[str], str]:
         parts = [v.title, " ".join(v.tags)]
         if self.match_description:
             parts.append(v.description)
         text = "\n".join(parts)
+        # Le parole esports nelle descrizioni e nei tag sono spesso hashtag messi a caso
+        # (#esports #th19 #clashofclans...): in modalità severa contano solo nel titolo.
+        esports_text = v.title if self.esports_in_title_only else text
         bad = [w for w, p in self.exclude if p.search(v.title)]
         if bad:
             return False, [], f"escluso da '{bad[0]}'"
-        hits = [w for w, p in self.esports if p.search(text)]
+        hits = [w for w, p in self.esports if p.search(esports_text)]
         hits = [h for h in hits if not any(h != o and h in o for o in hits)]  # niente doppioni
         if v.forward_all:
             return True, hits, ""
         if not hits:
-            return False, [], "nessuna parola chiave esports"
+            where = "nel titolo" if self.esports_in_title_only else ""
+            return False, [], f"nessuna parola esports {where}".strip()
         if not v.trusted_clash and not any(p.search(text) for _, p in self.clash):
-            return False, hits, "non sembra un video di Clash of Clans"
+            return False, hits, "non è TH19 / Clash of Clans"
         return True, hits, ""
 
 
@@ -524,11 +529,11 @@ def run_once(cfg: dict, state_path: Path, dry_run: bool = False) -> int:
     max_posts = int(beh.get("max_posts_per_run", 25))
     skip_shorts = bool(beh.get("skip_shorts", True))
     min_dur = int(float(beh.get("min_duration_minutes", 4)) * 60)
-    matcher = Matcher(cfg.get("filter", {}), bool(beh.get("match_description", True)))
+    matcher = Matcher(cfg.get("filter", {}), bool(beh.get("match_description", True)),
+                      bool(beh.get("esports_words_in_title_only", True)))
 
     # Se filtro o ricerche sono cambiati, rivaluta i video scartati prima e rifà la ricerca da capo
-    fhash = hashlib.sha1(json.dumps([cfg.get("filter", {}), cfg.get("search", {}),
-                                     beh.get("max_age_days")], sort_keys=True).encode()).hexdigest()[:12]
+    fhash = hashlib.sha1(json.dumps([cfg.get("filter", {}), cfg.get("search", {}), beh], sort_keys=True).encode()).hexdigest()[:12]
     if state.get("filter_hash") != fhash:
         dropped = [k for k, val in seen.items() if isinstance(val, list) and val[0] in ("skip", "old")]
         for k in dropped:
