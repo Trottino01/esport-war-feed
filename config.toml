@@ -1,0 +1,98 @@
+# ═══════════════════════════════════════════════════════════════════
+#  Esports War Feed — configurazione
+#  Puoi modificare questo file anche dal sito di GitHub (icona matita):
+#  il controllo successivo userà subito la nuova versione.
+# ═══════════════════════════════════════════════════════════════════
+
+[discord]
+# L'URL del webhook NON va scritto qui: mettilo nel segreto GitHub
+# DISCORD_WEBHOOK_URL, oppure nel file .env se lo usi sul tuo PC.
+username   = "Esports War Feed"   # nome con cui compaiono i messaggi
+avatar_url = ""                   # link a un'immagine (facoltativo)
+mention    = ""                   # es. "<@&123456789012345678>" per avvisare un ruolo
+forum_mode = false                # true se il canale è un canale Forum: ogni guerra diventa un post da commentare
+
+[behavior]
+max_age_days         = 14     # ignora i video più vecchi (vale anche al primo avvio)
+max_posts_per_run    = 25     # gli altri restano in coda per il giro dopo, non si perdono
+skip_shorts          = true   # scarta gli YouTube Shorts
+min_duration_minutes = 4      # solo con chiave API: scarta i video più corti (le dirette non vengono toccate)
+match_description    = true   # cerca le parole chiave anche nella descrizione: più completo, qualche falso positivo in più
+
+[filter]
+# Un video viene inoltrato se:
+#   • nel titolo NON c'è nessuna parola di exclude_in_title, e
+#   • titolo/descrizione/tag contengono almeno una parola di esports_keywords, e
+#   • arriva da un canale dedicato a CoC (clash_only = true) OPPURE contiene una parola di clash_keywords.
+# Maiuscole e minuscole non contano; le parole vengono cercate intere ("thc" non trova "thchallenge").
+esports_keywords = [
+  "esports mode", "esport mode", "e-sports mode", "modalità esports",
+  "esports", "e-sports", "esport",
+  "world championship", "world finals", "worlds", "clashworlds",
+  "monthly final", "monthly finals", "monthly qualifier", "monthly qualifiers",
+  "last chance qualifier", "lcq", "golden ticket",
+  "town hall cup", "town hall cups", "thc",
+  "scrim", "scrims", "pro war", "pro league",
+]
+
+clash_keywords = [
+  "clash of clans", "clashofclans", "coc", "clash esports",
+  "th18", "th17", "th16", "town hall 18", "town hall 17",
+]
+
+# Cercate SOLO nel titolo (nelle descrizioni compaiono spesso per sponsor e link)
+exclude_in_title = [
+  "clash royale", "brawl stars", "squad busters", "boom beach", "hay day",
+  "#shorts", "builder base",
+  # "base link", "base layout",   # togli il # se vuoi escludere i video di sole basi
+]
+
+[search]
+# Ricerca su TUTTO YouTube: trova anche canali che non hai elencato sotto.
+# Si attiva solo se imposti il segreto YOUTUBE_API_KEY (gratuito, vedi README).
+# Ogni query costa 100 unità; il limite gratuito è 10.000 al giorno.
+# 4 query ogni 3 ore = 3.200 unità al giorno.
+enabled     = true
+every_hours = 3
+queries = [
+  "clash of clans esports mode",
+  "clash of clans world championship",
+  "clash of clans town hall cup",
+  "clash of clans esports war",
+]
+# relevance_language = "en"
+
+# ─────────────────────────── Canali da seguire ───────────────────────────
+# Per ogni canale metti 'id' (UC...) oppure 'handle' (@nome, come nell'URL del canale).
+#   clash_only  = true  → canale solo di Clash of Clans (default)
+#   forward_all = true  → inoltra TUTTI i suoi video, senza filtro (es. il canale VOD di una squadra)
+
+[[channels]]
+name = "Clash of Clans (ufficiale: Worlds, Monthly Final, THC)"
+id   = "UCD1Em4q90ZUK2R5HKesszJg"
+
+[[channels]]
+name = "Blueprint CoC"
+id   = "UCQJJGSWnPUCb8uKV_MoJeOA"
+
+[[channels]]
+name = "CarbonFin Gaming"
+id   = "UCNL6sUET_O5MYNqESOIIBpw"
+
+[[channels]]
+name = "Judo Sloth Gaming"
+id   = "UC85aYbNSFjsJdxfpxgQr8tA"
+
+# Esempio con handle:
+# [[channels]]
+# name   = "Canale di una squadra"
+# handle = "@nomecanale"
+# forward_all = true
+
+# ─────────────────────────── Playlist da seguire ───────────────────────────
+# Utile per le playlist ufficiali dei tornei: di default inoltra tutto.
+# L'id è la parte dopo "list=" nell'URL della playlist.
+# [[playlists]]
+# name = "World Championship 2026"
+# id   = "PLxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+# forward_all = true
