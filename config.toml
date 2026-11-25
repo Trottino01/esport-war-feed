@@ -47,7 +47,7 @@ esports_keywords = [
   "ro64", "ro32", "ro16", "ro8", "round of 32", "round of 16",
   "quarterfinal", "quarterfinals", "quarter final", "semifinal", "semifinals", "semi final",
   "grand final", "grand finals", "playoff", "playoffs", "group stage", "bracket",
-  "🆚",
+  "🆚", "vs", "versus",          # chi contro chi (es. "VEXX vs TEAM WINTER")
   # Togli il # qui sotto se vuoi anche questi (più rumore):
   # "tournament", "torneo", "torneio", "tournoi", "turnier", "турнир", "大会", "比赛", "대회",
 ]
@@ -64,6 +64,8 @@ exclude_in_title = [
   "clash royale", "brawl stars", "squad busters", "boom beach", "hay day",
   "#shorts", "builder base", "legend league", "legends league", "ranked",
   "trophy push", "farming", "base link", "base links",
+  # "vs" usato per confronti tra livelli, non tra squadre
+  "vs th18", "vs th17", "vs th16", "vs th 18", "th18 vs", "th17 vs",
 ]
 
 [search]
