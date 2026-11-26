@@ -105,7 +105,8 @@ def _score_affine(Q, B, rk, s):
     if sv[1] < 1e-6 or sv[0] / sv[1] > 1.6:           # deve essere quasi una similitudine
         return 0
     _score_affine.mirrored = bool(np.linalg.det(lin) < 0)
-    return _count_cells(B[sel][inl.ravel().astype(bool)])
+    _score_affine.pts = B[sel][inl.ravel().astype(bool)]
+    return _count_cells(_score_affine.pts)
 
 
 # ───────── Metodo B ─────────
@@ -214,7 +215,9 @@ def _score_symmetric(inst, s, max_hyp=400, rng=None):
             if counts[h] <= best:
                 continue
             c = _count_cells(cen[ok[h]])
-            best = max(best, c)
+            if c > best:
+                best = c
+                _score_symmetric.pts = cen[ok[h]]
     return best
 
 
@@ -227,6 +230,8 @@ def score(q, b):
     s = _scale(ratio)
     if s is None:
         return 0, "A"
+    if s > 1.8:                      # base molto piccola nell'immagine d'archivio: lavora alla scala dello screenshot
+        B, s = B * s, 1.0
     _score_affine.mirrored = False
     a = _score_affine(Q, B, rk, s)
     ka = "M" if _score_affine.mirrored else "A"
@@ -234,6 +239,104 @@ def score(q, b):
         return a, ka
     bsc = _score_symmetric(_instances(Q, B, bidx, s), s)
     return (a, ka) if a >= bsc else (bsc, "B")
+
+
+def match_region(q, b):
+    """Zona (x0, y0, x1, y1) dell'immagine d'archivio che corrisponde allo screenshot,
+    in coordinate normalizzate (lato lungo = LONG). None se non si riesce a stimarla."""
+    m = _matches(q, b)
+    if m is None:
+        return None
+    Q, B, bidx, ratio, rk = m
+    s = _scale(ratio)
+    if s is None:
+        return None
+    k = 1.0
+    if s > 1.8:
+        k, B, s = s, B * s, 1.0
+    _score_affine.pts = None
+    _score_symmetric.pts = None
+    a = _score_affine(Q, B, rk, s)
+    pts = _score_affine.pts
+    if a < 60:
+        bsc = _score_symmetric(_instances(Q, B, bidx, s), s)
+        if bsc > a and _score_symmetric.pts is not None:
+            pts = _score_symmetric.pts
+    if pts is None or len(pts) < 4:
+        return None
+    pts = np.asarray(pts) / k
+    x0, y0 = np.percentile(pts, 2, axis=0)
+    x1, y1 = np.percentile(pts, 98, axis=0)
+    return float(x0), float(y0), float(x1), float(y1)
+
+
+def _run(frac, center, rel=0.2):
+    """Tratto continuo di valori alti (>= rel * massimo) che contiene 'center'."""
+    if frac.max() <= 0:
+        return None
+    on = frac >= rel * frac.max()
+    c = int(min(max(center, 0), len(frac) - 1))
+    if not on[c]:
+        idxs = np.where(on)[0]
+        c = int(idxs[np.argmin(np.abs(idxs - c))])
+    a = c
+    while a > 0 and on[a - 1]:
+        a -= 1
+    b = c
+    while b < len(on) - 1 and on[b + 1]:
+        b += 1
+    return a, b + 1
+
+
+def _sharp_box(img, near):
+    """Riquadro della zona nitida (la base) attorno a 'near': esclude bande nere e copie
+    sfocate ai lati, tipiche delle miniature degli Shorts."""
+    g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    lap = cv2.Laplacian(g, cv2.CV_32F)
+    cell = max(8, min(img.shape[:2]) // 60)
+    E = cv2.resize(cv2.blur(lap * lap, (cell, cell)), (img.shape[1] // cell, img.shape[0] // cell),
+                   interpolation=cv2.INTER_AREA)
+    sharp = (E > max(10.0, 0.04 * float(np.percentile(E, 95)))).astype(np.float32)
+    cols = _run(sharp.mean(0), near[0] / cell)
+    if not cols:
+        return None
+    rows = _run(sharp[:, cols[0]:cols[1]].mean(1), near[1] / cell)
+    if not rows:
+        return None
+    # quanto è "piatto" (nero o sfocato) tutto ciò che sta fuori dal riquadro?
+    flat = E < max(4.0, 0.004 * float(np.percentile(E, 95)))
+    out = np.ones_like(flat, bool)
+    out[rows[0]:rows[1], cols[0]:cols[1]] = False
+    flat_out = float(flat[out].mean()) if out.any() else 0.0
+    return cols[0] * cell, rows[0] * cell, cols[1] * cell, rows[1] * cell, flat_out
+
+
+def base_crop(img, region, out_w=1000):
+    """Ritaglia la base dall'immagine d'archivio e la rende più grande e nitida."""
+    h, w = img.shape[:2]
+    k = LONG / max(h, w)                              # le coordinate delle feature sono riscalate
+    if region:
+        x0, y0, x1, y1 = (v / k for v in region)
+    else:
+        x0, y0, x1, y1 = w * 0.25, h * 0.25, w * 0.75, h * 0.75
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    sb = _sharp_box(img, (cx, cy))
+    if sb and sb[4] >= 0.6:
+        ex0, ey0, ex1, ey1 = sb[:4]                   # miniatura "a pannello" (bande nere / lati sfocati)
+        mx, my = (ex1 - ex0) * 0.06, (ey1 - ey0) * 0.06  # piccolo margine: non tagliare le punte del rombo
+        ex0, ey0, ex1, ey1 = ex0 - mx, ey0 - my, ex1 + mx, ey1 + my
+    else:
+        ex0, ey0, ex1, ey1 = 0, 0, w, h               # base a tutto schermo: meglio intera che tagliata
+    X0, Y0 = int(max(0, ex0)), int(max(0, ey0))
+    X1, Y1 = int(min(w, ex1)), int(min(h, ey1))
+    crop = img[Y0:Y1, X0:X1] if (X1 - X0) > 20 and (Y1 - Y0) > 20 else img
+    ch, cw = crop.shape[:2]
+    if cw < out_w:
+        crop = cv2.resize(crop, (out_w, int(ch * out_w / cw)), interpolation=cv2.INTER_LANCZOS4)
+        blur = cv2.GaussianBlur(crop, (0, 0), 1.2)
+        crop = cv2.addWeighted(crop, 1.5, blur, -0.5, 0)   # leggera nitidezza
+    ok, buf = cv2.imencode(".jpg", crop, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    return buf.tobytes() if ok else None
 
 
 # ═════════════════════════════ Discord ═════════════════════════════
@@ -706,14 +809,38 @@ def match_percent(scores, k):
     return int(max(0, min(99, round(pct))))
 
 
+_POOL_DATA = {}
+
+
+def _score_worker(key):
+    return key, score(_POOL_DATA["q"], _POOL_DATA["feats"][key])
+
+
+def _score_all(qf, feats_all, keys):
+    """Confronta lo screenshot con tutte le basi, in parallelo su tutti i processori."""
+    workers = min(os.cpu_count() or 1, 8)
+    if workers > 1 and len(keys) >= 24:
+        import multiprocessing as mp
+        try:
+            _POOL_DATA["q"], _POOL_DATA["feats"] = qf, feats_all
+            with mp.get_context("fork").Pool(workers) as pool:
+                return dict(pool.map(_score_worker, keys, chunksize=max(1, len(keys) // (workers * 4))))
+        except Exception as e:
+            log(f"⚠️  Confronto parallelo non riuscito ({e}), procedo in sequenza")
+        finally:
+            _POOL_DATA.clear()
+    return {k: score(qf, feats_all[k]) for k in keys}
+
+
 def search(idx: Index, qf, th=None, top=3):
     feats_all = idx.load_all()
     best_by_link = {}
-    for key, bf in feats_all.items():
+    keys = [k for k in feats_all
+            if not (th and idx.meta["entries"][k].get("th") and idx.meta["entries"][k]["th"] != th)]
+    all_scores = _score_all(qf, feats_all, keys)
+    for key in keys:
         e = idx.meta["entries"][key]
-        if th and e.get("th") and e["th"] != th:
-            continue
-        sc, how = score(qf, bf)
+        sc, how = all_scores[key]
         cur = best_by_link.get(e["link"])
         if cur is None or sc > cur[0]:
             best_by_link[e["link"]] = (sc, how, e, key)
@@ -722,7 +849,10 @@ def search(idx: Index, qf, th=None, top=3):
     results = []
     for k, (sc, how, e, key) in enumerate(ranked[:top]):
         results.append({"score": sc, "pct": match_percent(scores, k), "how": how,
-                        "link": e["link"], "th": e.get("th"), "jump": e["jump"], "img": entry_image(key, e)})
+                        "link": e["link"], "th": e.get("th"), "jump": e["jump"], "img": entry_image(key, e),
+                        "key": key, "img_exact": bool(e.get("img"))})
+    if results:                       # immagine pulita della base trovata (solo per la prima)
+        results[0]["crop"] = card_image(qf, feats_all.get(results[0]["key"]), results[0])
     return results, len(feats_all)
 
 
@@ -746,34 +876,87 @@ def level(p):
     return "high" if p >= 80 else "mid" if p >= 50 else "low" if p >= 25 else "none"
 
 
+def card_image(qf, bf, r):
+    """Scarica l'immagine d'archivio della base trovata e ne ritaglia solo la base, ingrandita."""
+    if not r.get("img") or bf is None:
+        return None
+    try:
+        img = decode_image(download(r["img"]))
+    except Exception:
+        return None
+    if img is None:
+        return None
+    try:
+        region = match_region(qf, bf) if r.get("img_exact") else None
+        return base_crop(img, region)
+    except Exception as e:
+        log(f"⚠️  Ritaglio non riuscito ({e})")
+        return None
+
+
 def build_reply(per_image, n_archive, cfg):
-    """Testo in alto + una scheda (embed) per ogni base trovata, con immagine e link cliccabile."""
-    heads, embeds = [], []
+    """Testo in alto + UNA scheda con la base trovata: immagine pulita, percentuale, link cliccabile.
+    Restituisce (testo, schede, file da allegare)."""
+    heads, embeds, files = [], [], []
+    alt = bool(cfg.get("show_alternatives", False))
     for k, (results, conf) in enumerate(per_image):
         pre = f"**Image {k + 1}:** " if len(per_image) > 1 else ""
         best = f" ({results[0]['pct']}%)" if results else ""
         heads.append(pre + {"high": "🟢 **Match found**" + best,
                             "mid": "🟡 **Likely match**" + best,
-                            "low": "🔴 **Uncertain**: this base may not be in the archive, here are the closest ones",
+                            "low": "🔴 **Uncertain**: this base may not be in the archive" + best,
                             "none": "⚪ **No similar base** in the archive"}[conf])
-        if conf == "none" and not cfg.get("show_nearest_when_none", True):
+        if not results or (conf == "none" and not cfg.get("show_nearest_when_none", True)):
             continue
-        for i, r in enumerate(results, 1):
-            kind = {"A": "same orientation", "M": "mirrored"}.get(r["how"], "rotated/mirrored")
-            src = "▶️ Source video" if "youtube.com" in r["jump"] else "💬 Original post"
-            emb = {
-                "title": f"#{i} · {r['pct']}% match" + (f" · {r['th']}" if r.get("th") else ""),
-                "url": r["link"],
-                "description": f"**[📋 Copy base in game]({r['link']})**\n[{src}]({r['jump']}) · {kind}",
-                "color": COLORS[level(r["pct"])],
-            }
-            if r.get("img"):
-                emb["image"] = {"url": r["img"]}
-            embeds.append(emb)
-    embeds = embeds[:10]
+        r = results[0]
+        kind = {"A": "same orientation", "M": "mirrored"}.get(r["how"], "rotated/mirrored")
+        src = "▶️ Source video" if "youtube.com" in r["jump"] else "💬 Original post"
+        desc = f"**[📋 Copy base in game]({r['link']})**\n[{src}]({r['jump']}) · {kind}"
+        if alt and len(results) > 1:
+            desc += "\n\nOther candidates: " + " · ".join(
+                f"[{x['pct']}%]({x['link']})" for x in results[1:])
+        emb = {"title": f"{r['pct']}% match" + (f" · {r['th']}" if r.get("th") else "") + " · tap to copy",
+               "url": r["link"], "description": desc, "color": COLORS[level(r["pct"])]}
+        if r.get("crop"):
+            name = f"base_{k + 1}.jpg"
+            files.append((name, r["crop"]))
+            emb["image"] = {"url": f"attachment://{name}"}
+        elif r.get("img"):
+            emb["image"] = {"url": r["img"]}
+        embeds.append(emb)
     if embeds:
-        embeds[-1]["footer"] = {"text": f"Archive: {n_archive} bases · add \"th19\" to your message to search only TH19 bases"}
-    return "\n".join(heads)[:1990], embeds
+        embeds[-1]["footer"] = {"text": f"Archive: {n_archive} bases · add \"th19\" to search only TH19 bases"}
+    return "\n".join(heads)[:1990], embeds, files
+
+
+def discord_multipart(method, url, payload, files, headers=None, retries=4):
+    """Invia un messaggio con allegati (immagini) a Discord."""
+    boundary = "----BaseFinder" + os.urandom(8).hex()
+    if files:
+        payload = dict(payload)
+        payload["attachments"] = [{"id": i, "filename": n} for i, (n, _) in enumerate(files)]
+    parts = [f'--{boundary}\r\nContent-Disposition: form-data; name="payload_json"\r\n'
+             f'Content-Type: application/json\r\n\r\n'.encode() + json.dumps(payload).encode() + b"\r\n"]
+    for i, (name, data) in enumerate(files):
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="files[{i}]"; filename="{name}"\r\n'
+                     f'Content-Type: image/jpeg\r\n\r\n'.encode() + data + b"\r\n")
+    body = b"".join(parts) + f"--{boundary}--\r\n".encode()
+    h = {"Content-Type": f"multipart/form-data; boundary={boundary}", "User-Agent": UA}
+    h.update(headers or {})
+    for attempt in range(retries):
+        req = urllib.request.Request(url, data=body, method=method, headers=h)
+        try:
+            with urllib.request.urlopen(req, timeout=60) as r:
+                return json.loads(r.read() or b"null")
+        except urllib.error.HTTPError as e:
+            txt = e.read().decode("utf-8", "replace")
+            if e.code == 429:
+                time.sleep(2)
+                continue
+            if e.code >= 500 and attempt < retries - 1:
+                time.sleep(2)
+                continue
+            raise DiscordError(e.code, txt) from None
 
 
 def answer_queries(idx: Index, token, search_ids, cfg, deadline):
@@ -822,15 +1005,17 @@ def answer_queries(idx: Index, token, search_ids, cfg, deadline):
                 per_image.append((results, confidence(results, cfg)))
                 log(f"🔎 richiesta {m['id']}: " + ", ".join(f"{r['score']}{r['how']}={r['pct']}%" for r in results))
             if not idx.meta["entries"]:
-                content, embeds = "⚠️ The base archive is still empty: wait for the first YouTube collection.", []
+                content, embeds, files = "⚠️ The base archive is still empty: wait for the first YouTube collection.", [], []
             else:
-                content, embeds = build_reply(per_image, n_arch or len(idx.meta["entries"]), cfg)
-            dapi("POST", f"/channels/{cid}/messages", token, body={
+                content, embeds, files = build_reply(per_image, n_arch or len(idx.meta["entries"]), cfg)
+            if not idx.meta["entries"]:
+                files = []
+            discord_multipart("POST", f"{DISCORD_API}/channels/{cid}/messages", {
                 "content": content,
                 "embeds": embeds,
                 "message_reference": {"message_id": m["id"], "fail_if_not_exists": False},
                 "allowed_mentions": {"parse": [], "replied_user": False},
-            })
+            }, files, headers={"Authorization": f"Bot {token}"})
             try:
                 dapi("PUT", f"/channels/{cid}/messages/{m['id']}/reactions/{urllib.parse.quote(done_emoji)}/@me", token)
                 dapi("DELETE", emoji_path, token)
@@ -840,6 +1025,70 @@ def answer_queries(idx: Index, token, search_ids, cfg, deadline):
     return answered
 
 
+def interaction_reply(app_id, token, content, embeds, files=()):
+    url = f"https://discord.com/api/v10/webhooks/{app_id}/{token}/messages/@original"
+    discord_multipart("PATCH", url, {"content": content, "embeds": embeds, "allowed_mentions": {"parse": []}},
+                      list(files))
+
+
+def run_interaction(idx: Index, cfg):
+    app_id = os.environ.get("INTERACTION_APP_ID", "").strip()
+    token = os.environ.get("INTERACTION_TOKEN", "").strip()
+    try:
+        urls = json.loads(os.environ.get("INTERACTION_IMAGES", "[]"))
+    except json.JSONDecodeError:
+        urls = []
+    m = re.search(r"(\d{1,2})", os.environ.get("INTERACTION_TH", ""))
+    th = f"TH{m.group(1)}" if m else None
+    if not app_id or not token:
+        log("❌ Mancano i dati del comando Discord")
+        return 2
+    try:
+        if not idx.meta["entries"]:
+            interaction_reply(app_id, token, "⚠️ The base archive is still empty: wait for the first YouTube collection.", [])
+            return 0
+        per_image, n_arch = [], len(idx.meta["entries"])
+        for url in urls[:3]:
+            try:
+                img = decode_image(download(url))
+            except Exception:
+                img = None
+            if img is None:
+                per_image.append(([], "none"))
+                continue
+            t = time.time()
+            results, n_arch = search(idx, feats(img), th, int(cfg.get("max_results", 3)))
+            per_image.append((results, confidence(results, cfg)))
+            log(f"🔎 /findbase: " + ", ".join(f"{r['pct']}%" for r in results) + f" in {time.time() - t:.0f}s")
+        content, embeds, files = build_reply(per_image, n_arch, cfg)
+        interaction_reply(app_id, token, content, embeds, files)
+    except Exception as e:
+        log(f"❌ Errore: {e}")
+        try:
+            interaction_reply(app_id, token, "⚠️ Something went wrong while searching. Please try again in a minute.", [])
+        except Exception:
+            pass
+        return 1
+    return 0
+
+
+def register_commands(token):
+    app = dapi("GET", "/oauth2/applications/@me", token)
+    cmds = [
+        {"name": "findbase", "type": 1,
+         "description": "Find the link of a Clash of Clans base from a screenshot",
+         "options": [
+             {"type": 11, "name": "screenshot", "description": "Screenshot of the base", "required": True},
+             {"type": 3, "name": "townhall", "description": "Only search this Town Hall, e.g. th19", "required": False},
+         ],
+         "integration_types": [0], "contexts": [0]},
+        {"name": "Find base link", "type": 3, "integration_types": [0], "contexts": [0]},
+    ]
+    dapi("PUT", f"/applications/{app['id']}/commands", token, body=cmds)
+    log(f"✅ Comandi registrati per {app.get('name', app['id'])}: /findbase e 'Find base link'")
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser(description="Cerca il link di una base da uno screenshot")
     ap.add_argument("--config", default=str(BASE_DIR / "cerca_base.toml"))
@@ -847,6 +1096,8 @@ def main():
     ap.add_argument("--catalog", default=str(BASE_DIR / "yt_catalog"))
     ap.add_argument("--max-minutes", type=float, default=45)
     ap.add_argument("--image", help="prova locale: confronta un'immagine con l'archivio e stampa i risultati")
+    ap.add_argument("--interaction", action="store_true", help="risponde a un comando /findbase (avviato dal Worker)")
+    ap.add_argument("--register-commands", action="store_true", help="registra /findbase su Discord (una volta)")
     args = ap.parse_args()
     t0 = time.time()
     deadline = t0 + args.max_minutes * 60
@@ -854,8 +1105,12 @@ def main():
         full_cfg = tomllib.load(f)
     cfg = full_cfg.get("cerca_base", {})
     ycfg = full_cfg.get("youtube", {})
+    if args.register_commands:
+        return register_commands(os.environ.get("DISCORD_BOT_TOKEN", "").strip())
     idx = Index(Path(args.index))
     (idx.root / "CHANGED").unlink(missing_ok=True)
+    if args.interaction:
+        return run_interaction(idx, cfg)
 
     if args.image:
         img = cv2.imread(args.image)
@@ -880,6 +1135,10 @@ def main():
     ykey = os.environ.get("YOUTUBE_API_KEY_BASI", "").strip() or os.environ.get("YOUTUBE_API_KEY", "").strip()
     youtube_collect(ycfg, cat, ykey)
     cat.save()
+    for key, e in idx.meta["entries"].items():
+        if key.startswith("yt_") and not e.get("img") and key[3:] in cat.data["items"]:
+            e["img"] = cat.data["items"][key[3:]]["thumb"]
+            idx.changed = True
     added += index_youtube(idx, cat, idx_deadline)
     idx.save()
     n_yt = sum(1 for k in idx.meta["entries"] if k.startswith("yt_"))
