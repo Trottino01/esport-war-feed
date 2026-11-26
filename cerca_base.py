@@ -738,6 +738,7 @@ class Catalog:
         d.setdefault("queries_done", [])
         d.setdefault("tg", {})
         d.setdefault("tg_items", {})
+        d.setdefault("x_items", {})
         if d.get("v", 1) < 2:
             if d.get("last_run"):                           # ricerche della prima versione: già fatte
                 d["queries_done"] = ["th19 base link", "th19 war base link", "town hall 19 base link",
@@ -855,7 +856,10 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
     last = cat.data.get("last_run")                     # ultimo giro di ricerche
     last_c = cat.data.get("last_creators")              # ultimo controllo dei creator
     pending = (set(ycfg.get("queries", [])) - set(cat.data.get("queries_done", []))) or cat.data.get("recheck")
-    do_search = (not last) or now - last >= float(ycfg.get("every_hours", 24)) * 3600 - 300 or bool(pending)
+    qd0 = cat.data.get("quota_day") or {}
+    blocked_today = bool(qd0.get("searches_blocked")) and qd0.get("day") == _pacific_day()
+    do_search = (not last) or now - last >= float(ycfg.get("every_hours", 24)) * 3600 - 300 or (
+        bool(pending) and not blocked_today)
     do_creators = (do_search or not last_c
                    or now - last_c >= float(ycfg.get("creators_every_hours", 3)) * 3600 - 300)
     if not (do_search or do_creators):
@@ -864,7 +868,8 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
     day = _pacific_day()
     qd = cat.data.setdefault("quota_day", {"day": day, "used": 0})
     if qd.get("day") != day:
-        qd.update(day=day, used=0)
+        qd.clear()
+        qd.update(day=day, used=0, searches=0)
     back_iso = datetime.fromtimestamp(now - float(ycfg.get("backfill_days", 365)) * 86400,
                                       timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     recent_iso = datetime.fromtimestamp((last or now) - 2 * 86400, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -872,6 +877,11 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
     th_ok = {t.upper() for t in ycfg.get("town_halls", ["TH19"])}
     seen, items, creators = cat.data["seen"], cat.data["items"], cat.data["creators"]
     quota, added = 0, 0
+    if qd.get("searches_blocked") and qd.get("day") == day:
+        do_search_now = False                           # Google ha già detto basta per oggi
+    else:
+        do_search_now = do_search
+    max_searches = int(ycfg.get("max_searches_per_day", 90))   # Google: 100 ricerche al giorno per progetto
     budget = min(int(ycfg.get("max_quota_per_run", 8000)), int(ycfg.get("daily_quota", 9500)) - int(qd.get("used", 0)))
     if budget < 20:
         log(f"ℹ️  YouTube: quota di oggi quasi finita ({qd.get('used')} unità usate), riprendo domani")
@@ -880,7 +890,9 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
 
     # 1) ricerche (tutte le lingue)
     new_ids = []
-    for qtext in (ycfg.get("queries", []) if do_search else []):
+    for qtext in (ycfg.get("queries", []) if do_search_now else []):
+        if stop:
+            break
         fresh_q = qtext not in done_q                       # ricerca nuova: guarda indietro di un anno
         orders = ["date", "relevance"] if fresh_q else ["date"]
         pages = int(ycfg.get("backfill_pages" if fresh_q else "pages", 1))
@@ -890,16 +902,24 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
             if order == "date":
                 params["publishedAfter"] = back_iso if fresh_q else recent_iso
             for _ in range(max(1, pages)):
-                if quota + 100 > budget:
+                if quota + 100 > budget or int(qd.get("searches", 0)) >= max_searches:
                     stop = True
                     break
                 try:
                     data = yt_get("search", params, key)
                 except Exception as e:
-                    log(f"⚠️  Ricerca YouTube '{qtext}' non riuscita: {e}")
+                    if "HTTP 429" in str(e) or "HTTP 403" in str(e):
+                        # limite giornaliero delle ricerche raggiunto: inutile insistere fino a domani
+                        qd["searches_blocked"] = True
+                        log("ℹ️  YouTube: ricerche di oggi finite (Google ne concede circa 100 al giorno). "
+                            "Le ricerche mancanti ripartono domani; creator e archivio continuano.")
+                        stop = True
+                    else:
+                        log(f"⚠️  Ricerca YouTube '{qtext}' non riuscita: {e}")
                     ok_q = False
                     break
                 quota += 100
+                qd["searches"] = int(qd.get("searches", 0)) + 1
                 for it in data.get("items", []):
                     vid = (it.get("id") or {}).get("videoId")
                     if vid and vid not in seen and vid not in new_ids:
@@ -1061,7 +1081,7 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
         for v in data.get("items", []):
             items[v["id"]]["dur"] = iso_duration_seconds((v.get("contentDetails") or {}).get("duration"))
 
-    if do_search:
+    if do_search_now and not qd.get("searches_blocked"):
         cat.data["last_run"] = now
     if do_creators:
         cat.data["last_creators"] = now
@@ -1266,12 +1286,13 @@ def telegram_collect(tcfg: dict, cat: Catalog, th_ok=("TH19",)):
         st = states.setdefault(cl, {"newest": 0, "oldest": None, "done": False, "last_run": None})
         if st["last_run"] and time.time() - st["last_run"] < every - 300 and st["done"]:
             continue
-        got, pages, blocked = {}, 0, None
+        got, pages, blocked, dry_stop = {}, 0, None, False
+        dry_limit = int(tcfg.get("stop_after_pages_without_bases", 15))
 
         def walk(before, stop_at):
             """Pagine all'indietro da 'before'. Ritorna (id più basso visto, storico finito?)."""
-            nonlocal pages, blocked
-            low = None
+            nonlocal pages, blocked, dry_stop
+            low, dry = None, 0
             while pages < max_pages and time.time() < t_end:
                 url = f"https://t.me/s/{chan}" + (f"?before={before}" if before else "")
                 try:
@@ -1285,6 +1306,15 @@ def telegram_collect(tcfg: dict, cat: Catalog, th_ok=("TH19",)):
                 for p in posts:
                     got[p["id"]] = p
                 lo = min(p["id"] for p in posts)
+                # storico: dopo tante pagine di fila senza basi del municipio giusto, i post più
+                # vecchi sono di municipi precedenti (TH19 è recente): inutile andare oltre
+                if not th_ok or any(th_of(l) in th_ok for p in posts for l in p["links"]):
+                    dry = 0
+                else:
+                    dry += 1
+                if stop_at == 0 and dry >= dry_limit:
+                    dry_stop = True
+                    return min(lo, low or lo), True
                 if (before is not None and lo >= before) or lo <= 1:
                     return min(lo, low or lo), True
                 low = lo if low is None else min(low, lo)
@@ -1340,7 +1370,8 @@ def telegram_collect(tcfg: dict, cat: Catalog, th_ok=("TH19",)):
         log(f"✈️  Telegram {chan}: {len(got)} post letti in {pages} pagine, +{n_new} con foto e link"
             + (f", {n_other} di altri municipi ignorati" if n_other else "")
             + (f", {n_link_only} con il link ma senza foto" if n_link_only else "")
-            + ("" if st["done"] else " (storico non ancora finito: continuo al prossimo giro)")
+            + (" (storico finito: i post più vecchi sono di altri municipi)" if dry_stop
+               else "" if st["done"] else " (storico non ancora finito: continuo al prossimo giro)")
             + (f" ⚠️ interrotto: {blocked}" if blocked else ""))
 
 
@@ -1368,35 +1399,223 @@ def _tg_refresh(cat, chan, post, done):
     return True
 
 
+# ═════════════════════════════ X (Twitter) ═════════════════════════════
+# X non lascia leggere i post gratis in automatico, ma un singolo post di cui si
+# ha il link si legge con lo stesso servizio che X usa per mostrare i post
+# incorporati nei siti (gratis). Chi posta il link di X nel canale di ricerca
+# aggiunge all'archivio le basi di quel post.
+
+X_STATUS_RE = re.compile(r"https?://(?:www\.|mobile\.)?(?:x|twitter|fxtwitter|vxtwitter|fixupx|fixvx)\.com/"
+                         r"(?:[A-Za-z0-9_]+|i(?:/web)?)/status(?:es)?/(\d{5,25})", re.I)
+
+
+class XError(Exception):
+    pass
+
+
+def x_get(url, retries=2):
+    return tg_get(url, retries)
+
+
+def _js_base36(value):
+    """Come Number.prototype.toString(36) di JavaScript (V8) per numeri positivi."""
+    import math
+    chars = "0123456789abcdefghijklmnopqrstuvwxyz"
+    integer = math.floor(value)
+    fraction = value - integer
+    delta = max(0.5 * (math.nextafter(value, math.inf) - value), math.nextafter(0.0, 1.0))
+    frac = []
+    if fraction >= delta:
+        while True:
+            fraction *= 36
+            delta *= 36
+            digit = int(fraction)
+            frac.append(digit)
+            fraction -= digit
+            if fraction > 0.5 or (fraction == 0.5 and (digit & 1)):
+                if fraction + delta > 1:
+                    while True:                      # riporto sulle cifre già scritte
+                        if not frac:
+                            integer += 1
+                            break
+                        d = frac.pop()
+                        if d + 1 < 36:
+                            frac.append(d + 1)
+                            break
+                    break
+            if fraction < delta:
+                break
+    ip, n = "", int(integer)
+    while True:
+        ip = chars[n % 36] + ip
+        n //= 36
+        if n == 0:
+            break
+    return ip + ("." + "".join(chars[d] for d in frac) if frac else "")
+
+
+def x_token(tid):
+    import math
+    return re.sub(r"0+|\.", "", _js_base36(int(tid) / 1e15 * math.pi))
+
+
+def _strings(o, skip=()):
+    if isinstance(o, str):
+        yield o
+    elif isinstance(o, dict):
+        for k, v in o.items():
+            if k not in skip:
+                yield from _strings(v, skip)
+    elif isinstance(o, list):
+        for v in o:
+            yield from _strings(v, skip)
+
+
+def _links_in(texts):
+    out, have = [], set()
+    for t in texts:
+        for l in LINK_RE.findall(html.unescape(t)):
+            l = l.rstrip(".,;:!*_~|")
+            lid = layout_id(l) or l
+            if lid not in have:
+                have.add(lid); out.append(l)
+    return out
+
+
+def _large(u):
+    if "pbs.twimg.com/media/" in u and "name=" not in u:
+        return u + ("&" if "?" in u else "?") + "name=large"
+    return u
+
+
+def x_fetch(tid):
+    """Foto, link delle basi, autore e data di un post di X."""
+    errors = []
+    try:
+        raw = x_get("https://cdn.syndication.twimg.com/tweet-result?" + urllib.parse.urlencode(
+            {"id": tid, "lang": "en", "token": x_token(tid)}))
+        d = json.loads(raw or b"{}")
+        if d.get("__typename") == "TweetTombstone" or not d.get("id_str"):
+            raise XError("post not available (deleted, private or age-restricted)")
+        photos = [m["media_url_https"] for m in d.get("mediaDetails", [])
+                  if m.get("type") == "photo" and m.get("media_url_https")]
+        if not photos:
+            photos = [p["url"] for p in d.get("photos", []) if p.get("url")]
+        try:
+            ts = datetime.strptime(d.get("created_at", "")[:19], "%Y-%m-%dT%H:%M:%S").replace(
+                tzinfo=timezone.utc).timestamp()
+        except ValueError:
+            ts = time.time()
+        return {"id": str(tid), "author": (d.get("user") or {}).get("screen_name") or "i",
+                "photos": [_large(u) for u in photos],
+                "links": _links_in(_strings(d, skip=("quoted_tweet", "parent", "user"))), "ts": ts}
+    except Exception as e:
+        errors.append(str(e))
+    try:                                             # riserva: il servizio pubblico FxTwitter
+        d = json.loads(x_get(f"https://api.fxtwitter.com/status/{tid}"))
+        t = d.get("tweet") or {}
+        if not t:
+            raise XError(d.get("message") or "post not found")
+        photos = [p["url"] for p in (t.get("media") or {}).get("photos", []) if p.get("url")]
+        return {"id": str(tid), "author": (t.get("author") or {}).get("screen_name") or "i",
+                "photos": [_large(u) for u in photos],
+                "links": _links_in(_strings(t, skip=("quote", "author"))),
+                "ts": float(t.get("created_timestamp") or time.time())}
+    except Exception as e:
+        errors.append(str(e))
+    if any("404" in e or "not found" in e.lower() or "not available" in e for e in errors):
+        raise XError("not found: the post was deleted, is private or the link is wrong")
+    raise XError("X isn't answering right now, try again in a few minutes")
+
+
+def x_add_from_message(m, idx: Index, cat: Catalog, th_ok=("TH19",)):
+    """Messaggio con uno o più link di X: aggiunge le basi di quei post. Ritorna il testo di risposta."""
+    th_ok = {t.upper() for t in th_ok}
+    ids = list(dict.fromkeys(X_STATUS_RE.findall(m.get("content", ""))))[:5]
+    extra = _links_in([m.get("content", "")])          # link della base scritti nel messaggio
+    items = cat.data.setdefault("x_items", {})
+    lines, total = [], 0
+    for tid in ids:
+        try:
+            post = x_fetch(tid)
+        except Exception as e:
+            lines.append(f"⚠️ Couldn't read that X post ({e}).")
+            continue
+        who = f"@{post['author']}'s post" if post["author"] != "i" else "the post"
+        links = post["links"] or (extra if len(ids) == 1 else [])
+        if not post["photos"]:
+            lines.append(f"⚠️ {who[0].upper() + who[1:]} has no pictures, so there's nothing to match.")
+            continue
+        if not links:
+            lines.append(f"⚠️ {who[0].upper() + who[1:]} has {len(post['photos'])} picture(s) but no base link. "
+                         "If the link is in a reply, paste it in your message next to the X link.")
+            continue
+        ok = [l for l in links if th_of(l) in th_ok]
+        if not ok:
+            ths = sorted({th_of(l) or "?" for l in links})
+            lines.append(f"⚠️ {who[0].upper() + who[1:]} has no TH19 base (found: {', '.join(ths)}).")
+            continue
+        url = f"https://x.com/{post['author']}/status/{tid}"
+        if tid in items and any(k.startswith(f"x_{tid}-") for k in idx.meta["entries"]):
+            lines.append(f"ℹ️ [{who}]({url}) is already in the archive.")
+            continue
+        items[tid] = {"chan": post["author"], "post": tid, "url": url, "ts": post["ts"], "links": links,
+                      "photos": [[n, u, False] for n, u in enumerate(post["photos"])]}
+        cat.changed = True
+        for k in [k for k in idx.meta.get("failed", {}) if k.startswith(f"x_{tid}-")]:
+            del idx.meta["failed"][k]                   # nuovo tentativo (es. link aggiunto dopo)
+        n = index_posts(idx, cat, "x", time.time() + 120, th_ok, only={tid})
+        total += n
+        if n == 0:
+            lines.append(f"⚠️ Couldn't use the pictures of [{who}]({url}) (they don't show a village).")
+            continue
+        note = ""
+        if len(post["photos"]) > 1 and len(links) > 1:
+            note = (" Pictures and links were matched in order." if len(post["photos"]) == len(links)
+                    else " It shows several bases, so a match will list all its links.")
+        lines.append(f"✅ Added **{n} TH19 base{'s' if n != 1 else ''}** from [{who}]({url}).{note}")
+    if total:
+        lines.append(f"Archive: {len(idx.meta['entries'])} TH19 bases")
+    return "\n".join(lines)[:1990] or "⚠️ I couldn't find an X post link in your message.", total
+
+
 def index_telegram(idx: Index, cat: Catalog, deadline, th_ok=("TH19",)):
+    return index_posts(idx, cat, "tg", deadline, th_ok)
+
+
+def index_posts(idx: Index, cat: Catalog, source, deadline, th_ok=("TH19",), only=None):
+    """Aggiunge all'archivio le foto dei post (Telegram "tg" o X "x") salvati nel catalogo."""
     added = 0
     th_ok = {t.upper() for t in th_ok}
     failed = idx.meta.setdefault("failed", {})
     refreshed = {}
+    get = tg_get if source == "tg" else x_get
 
     def fetch(url):
         try:
-            return decode_image(tg_get(url, retries=1)), True
+            return decode_image(get(url, retries=1)), True
         except Exception:
             return None, False                       # non scaricata (indirizzo scaduto o rete)
 
-    for key, it in cat.data.get("tg_items", {}).items():
+    for key, it in cat.data.get(f"{source}_items", {}).items():
+        if only is not None and key not in only:
+            continue
         links = it["links"]
         ok_links = [l for l in links if not th_ok or th_of(l) in th_ok]
         if not ok_links:
             continue
-        jump = f"https://t.me/{it['chan']}/{it['post']}"
+        jump = f"https://t.me/{it['chan']}/{it['post']}" if source == "tg" else it["url"]
         for n in range(len(it["photos"])):
             photos = it["photos"]
             if len(links) == 1:
-                link, all_links, guess, only = links[0], None, False, False
+                link, all_links, guess, vonly = links[0], None, False, False
             elif len(photos) == len(links):           # album: foto e link nello stesso ordine
-                link, all_links, guess, only = links[n], ok_links, True, False
+                link, all_links, guess, vonly = links[n], ok_links, True, False
             else:                                     # una foto, più link: non si sa quale sia
-                link, all_links, guess, only = None, ok_links, False, True
+                link, all_links, guess, vonly = None, ok_links, False, True
             if link is not None and link not in ok_links:
                 continue
-            ekey = f"tg_{key}-{n}"
+            ekey = f"{source}_{key}-{n}"
             if ekey in idx.meta["entries"] or ekey in failed:
                 continue
             if time.time() > deadline:
@@ -1404,7 +1623,7 @@ def index_telegram(idx: Index, cat: Catalog, deadline, th_ok=("TH19",)):
                 return added
             used = photos[n][1]
             img, got = fetch(used)
-            if not got:
+            if not got and source == "tg":
                 if not _tg_refresh(cat, it["chan"], it["post"], refreshed):
                     return added                       # Telegram non risponde: niente scarti, si riprova dopo
                 if it["photos"][n][1] != used:
@@ -1418,11 +1637,12 @@ def index_telegram(idx: Index, cat: Catalog, deadline, th_ok=("TH19",)):
                 idx.changed = True
                 continue
             e = idx.meta["entries"][ekey]
-            e["tg"] = [it["chan"], it["post"], n]
+            if source == "tg":
+                e["tg"] = [it["chan"], it["post"], n]
             if all_links and len(all_links) > 1:
                 e["links"] = all_links
                 e["guess"] = bool(guess)
-                if only:
+                if vonly:
                     e["video_only"] = True
             added += 1
             if added % 25 == 0:
@@ -1437,6 +1657,8 @@ def source_of(key):
         return "yt:" + key[3:14]                   # gli ID dei video YouTube sono lunghi 11 caratteri
     if key.startswith("tg_"):
         return "tg:" + key[3:].rsplit("-", 1)[0]
+    if key.startswith("x_"):
+        return "x:" + key[2:].rsplit("-", 1)[0]
     return key
 
 
@@ -1603,7 +1825,8 @@ def build_reply(per_image, n_archive, cfg):
         kind = {"A": "same orientation", "M": "mirrored"}.get(r["how"], "rotated/mirrored")
         yt = "youtube.com" in r["jump"]
         what = "video" if yt else "post"
-        src = "▶️ Source video" if yt else "✈️ Telegram post" if "t.me/" in r["jump"] else "💬 Original post"
+        src = ("▶️ Source video" if yt else "✈️ Telegram post" if "t.me/" in r["jump"]
+               else "𝕏 X post" if re.search(r"//(?:x|twitter)\.com/", r["jump"]) else "💬 Original post")
         desc = f"**[📋 Copy base in game]({r['link']})**\n[{src}]({r['jump']}) · {kind}"
         many = [l for l in (r.get("links") or []) if l]
         if r.get("video_only") and len(many) > 1:
@@ -1665,7 +1888,7 @@ def discord_multipart(method, url, payload, files, headers=None, retries=4):
             raise DiscordError(e.code, txt) from None
 
 
-def answer_queries(idx: Index, token, search_ids, cfg, deadline):
+def answer_queries(idx: Index, token, search_ids, cfg, deadline, cat=None, th_ok=("TH19",)):
     me = dapi("GET", "/users/@me", token)
     done_emoji = "✅"
     answered = 0
@@ -1685,6 +1908,26 @@ def answer_queries(idx: Index, token, search_ids, cfg, deadline):
             if time.time() - snowflake_time(m["id"]) > 48 * 3600:
                 continue
             if any(r.get("me") and (r.get("emoji") or {}).get("name") in (done_emoji, "⚠️") for r in m.get("reactions", [])):
+                continue
+            if cat is not None and X_STATUS_RE.search(m.get("content", "")):
+                # link di un post di X: le sue basi entrano nell'archivio
+                try:
+                    content, n_x = x_add_from_message(m, idx, cat, th_ok)
+                except Exception as e:
+                    content, n_x = f"⚠️ Something went wrong while reading the X post ({e}).", 0
+                log(f"𝕏  link di X {m['id']}: +{n_x} basi")
+                idx.save()
+                cat.save()
+                dapi("POST", f"/channels/{cid}/messages", token, body={
+                    "content": content, "flags": 4,                 # niente anteprime dei link
+                    "message_reference": {"message_id": m["id"], "fail_if_not_exists": False},
+                    "allowed_mentions": {"parse": [], "replied_user": False}})
+                try:
+                    dapi("PUT", f"/channels/{cid}/messages/{m['id']}/reactions/"
+                         f"{urllib.parse.quote(done_emoji if n_x else '⚠️')}/@me", token)
+                except DiscordError:
+                    pass
+                answered += 1
                 continue
             imgs = message_images(m)
             if not imgs:
@@ -1854,14 +2097,18 @@ def main():
             idx.changed = True
     th_ok = ycfg.get("town_halls", ["TH19"])
     added += index_telegram(idx, cat, idx_deadline, tcfg.get("town_halls", th_ok))
+    added += index_posts(idx, cat, "x", idx_deadline, th_ok)          # basi da X (dopo la ricostruzione settimanale)
     added += index_youtube(idx, cat, idx_deadline, th_ok)
     cat.save()
     idx.save()
     n_yt = sum(1 for k in idx.meta["entries"] if k.startswith("yt_"))
     n_tg = sum(1 for k in idx.meta["entries"] if k.startswith("tg_"))
-    log(f"📚 Archivio: {len(idx.meta['entries'])} basi ({n_yt} da YouTube, {n_tg} da Telegram, +{added} nuove)")
-    n = answer_queries(idx, token, searchc, cfg, deadline)
+    n_x = sum(1 for k in idx.meta["entries"] if k.startswith("x_"))
+    log(f"📚 Archivio: {len(idx.meta['entries'])} basi ({n_yt} da YouTube, {n_tg} da Telegram, "
+        f"{n_x} da X, +{added} nuove)")
+    n = answer_queries(idx, token, searchc, cfg, deadline, cat, th_ok)
     idx.save()
+    cat.save()
     log(f"Fatto: {n} richieste risposte in {time.time() - t0:.0f}s")
     return 0
 
