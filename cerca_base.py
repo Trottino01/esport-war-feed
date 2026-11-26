@@ -55,9 +55,54 @@ def prep(img):
     return cv2.resize(g, None, fx=s, fy=s, interpolation=cv2.INTER_AREA)
 
 
+FEATURE_VERSION = 2          # cambia quando cambia il modo di estrarre le feature: l'archivio si ricostruisce
+
+
+def play_area(img):
+    """Contorno dell'area di gioco (il rombo d'erba della base), oppure None se non si trova.
+    Serve a ignorare scenario, webcam, punteggi, barra delle truppe e scritte."""
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    h, sat, val = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+    grass = ((h >= 18) & (h <= 50) & (sat >= 50) & (val >= 70)).astype(np.uint8)
+    k = max(3, min(img.shape[:2]) // 80)
+    m = cv2.morphologyEx(grass, cv2.MORPH_OPEN, np.ones((k, k), np.uint8))
+    m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((k * 3, k * 3), np.uint8))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(m, 8)
+    if n <= 1:
+        return None
+    c = 1 + int(np.argmax(st[1:, cv2.CC_STAT_AREA]))
+    hull = cv2.convexHull(cv2.findNonZero((lab == c).astype(np.uint8)))
+    frac = cv2.contourArea(hull) / float(img.shape[0] * img.shape[1])
+    if frac < 0.06 or frac > 0.95:                    # niente rombo riconoscibile: non filtrare
+        return None
+    return hull
+
+
+def play_area_box(img):
+    hull = play_area(img)
+    if hull is None:
+        return None
+    x, y, w, h = cv2.boundingRect(hull)
+    return [int(x), int(y), int(x + w), int(y + h)]
+
+
 def feats(img, n=3000):
-    g = prep(img)
-    kp, d = cv2.SIFT_create(nfeatures=n).detectAndCompute(g, None)
+    if img.ndim == 3:
+        sc = LONG / max(img.shape[:2])
+        small = cv2.resize(img, None, fx=sc, fy=sc, interpolation=cv2.INTER_AREA)
+        g = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+        mask = None
+        hull = play_area(small)
+        if hull is not None:
+            # solo DENTRO l'area di gioco, senza la fascia del bordo: il contorno del rombo e lo
+            # scenario attorno sono uguali in tutte le basi e farebbero sembrare simili basi diverse
+            mask = np.zeros(g.shape, np.uint8)
+            cv2.fillConvexPoly(mask, hull, 255)
+            r = max(8, LONG // 50)
+            mask = cv2.erode(mask, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1)))
+    else:
+        g, mask = prep(img), None
+    kp, d = cv2.SIFT_create(nfeatures=n).detectAndCompute(g, mask)
     if d is None:
         return np.zeros((0, 2), np.float32), np.zeros((0, 128), np.uint8), np.zeros(0, np.float32)
     return (np.float32([k.pt for k in kp]), np.clip(d, 0, 255).astype(np.uint8),
@@ -311,9 +356,16 @@ def _sharp_box(img, near):
     return cols[0] * cell, rows[0] * cell, cols[1] * cell, rows[1] * cell, flat_out
 
 
-def base_crop(img, region, out_w=1000):
+def base_crop(img, region, out_w=1000, area=None):
     """Ritaglia la base dall'immagine d'archivio e la rende più grande e nitida."""
     h, w = img.shape[:2]
+    if area:                                          # rombo dell'area di gioco già noto: ritaglio esatto
+        x0, y0, x1, y1 = area
+        mx, my = (x1 - x0) * 0.02, (y1 - y0) * 0.04   # poco margine (gli edifici in alto sporgono un po')
+        X0, Y0 = int(max(0, x0 - mx)), int(max(0, y0 - my))
+        X1, Y1 = int(min(w, x1 + mx)), int(min(h, y1 + my * 0.5))
+        if X1 - X0 > 40 and Y1 - Y0 > 40:
+            return _finish_crop(img[Y0:Y1, X0:X1], out_w)
     k = LONG / max(h, w)                              # le coordinate delle feature sono riscalate
     if region:
         x0, y0, x1, y1 = (v / k for v in region)
@@ -330,6 +382,10 @@ def base_crop(img, region, out_w=1000):
     X0, Y0 = int(max(0, ex0)), int(max(0, ey0))
     X1, Y1 = int(min(w, ex1)), int(min(h, ey1))
     crop = img[Y0:Y1, X0:X1] if (X1 - X0) > 20 and (Y1 - Y0) > 20 else img
+    return _finish_crop(crop, out_w)
+
+
+def _finish_crop(crop, out_w):
     ch, cw = crop.shape[:2]
     if cw < out_w:
         crop = cv2.resize(crop, (out_w, int(ch * out_w / cw)), interpolation=cv2.INTER_LANCZOS4)
@@ -450,6 +506,18 @@ class Index:
         self.meta = json.loads(p.read_text()) if p.exists() else {"version": 1, "entries": {}, "channels": {}}
         self.changed = False
         self._cache = None
+        self.outdated = bool(self.meta["entries"]) and self.meta.get("fv") != FEATURE_VERSION
+        if not self.meta["entries"]:
+            self.meta["fv"] = FEATURE_VERSION
+
+    def reset(self):
+        """Svuota l'archivio (le basi verranno rianalizzate con il metodo nuovo)."""
+        for f in self.fdir.glob("*.npz"):
+            f.unlink()
+        self.meta = {"version": 1, "entries": {}, "channels": {}, "fv": FEATURE_VERSION}
+        self.outdated = False
+        self.changed = True
+        self._cache = None
 
     def save(self):
         tmp = self.root / "meta.json.tmp"
@@ -468,6 +536,9 @@ class Index:
         self.meta["entries"][key] = {"link": link, "th": th_of(link), "jump": jump, "ts": ts}
         if img_url:
             self.meta["entries"][key]["img"] = img_url
+        area = play_area_box(img)
+        if area:
+            self.meta["entries"][key]["area"] = area
         self.changed = True
         self._cache = None
         return True
@@ -806,7 +877,9 @@ def match_percent(scores, k):
     gap = (s[k] - (s[k + 1] if k + 1 < len(s) else med)) / sd
     e = 0.5 * z + 0.5 * gap
     pct = 100.0 / (1.0 + np.exp(-(e - 4.5) * 1.2))
-    return int(max(0, min(99, round(pct))))
+    # tetto in base al numero di edifici allineati: pochi edifici = mai una percentuale alta
+    cap = 100.0 / (1.0 + np.exp(-(s[k] - 22.0) / 5.0))
+    return int(max(0, min(99, round(min(pct, cap)))))
 
 
 _POOL_DATA = {}
@@ -850,7 +923,7 @@ def search(idx: Index, qf, th=None, top=3):
     for k, (sc, how, e, key) in enumerate(ranked[:top]):
         results.append({"score": sc, "pct": match_percent(scores, k), "how": how,
                         "link": e["link"], "th": e.get("th"), "jump": e["jump"], "img": entry_image(key, e),
-                        "key": key, "img_exact": bool(e.get("img"))})
+                        "key": key, "img_exact": bool(e.get("img")), "area": e.get("area")})
     if results:                       # immagine pulita della base trovata (solo per la prima)
         results[0]["crop"] = card_image(qf, feats_all.get(results[0]["key"]), results[0])
     return results, len(feats_all)
@@ -869,7 +942,7 @@ def confidence(results, cfg):
     return "none"
 
 
-COLORS = {"high": 0x2ECC71, "mid": 0xF1C40F, "low": 0xE74C3C, "none": 0x95A5A6}
+COLORS = {"high": 0x2ECC71, "mid": 0xF1C40F, "low": 0xE67E22, "none": 0x95A5A6}
 
 
 def level(p):
@@ -887,6 +960,8 @@ def card_image(qf, bf, r):
     if img is None:
         return None
     try:
+        if r.get("img_exact") and r.get("area"):
+            return base_crop(img, None, area=r["area"])
         region = match_region(qf, bf) if r.get("img_exact") else None
         return base_crop(img, region)
     except Exception as e:
@@ -904,7 +979,7 @@ def build_reply(per_image, n_archive, cfg):
         best = f" ({results[0]['pct']}%)" if results else ""
         heads.append(pre + {"high": "🟢 **Match found**" + best,
                             "mid": "🟡 **Likely match**" + best,
-                            "low": "🔴 **Uncertain**: this base may not be in the archive" + best,
+                            "low": "🟠 **Possible match**" + best + ": compare the picture before using it",
                             "none": "⚪ **No similar base** in the archive"}[conf])
         if not results or (conf == "none" and not cfg.get("show_nearest_when_none", True)):
             continue
@@ -1043,8 +1118,8 @@ def run_interaction(idx: Index, cfg):
         log("❌ Mancano i dati del comando Discord")
         return 2
     try:
-        if not idx.meta["entries"]:
-            interaction_reply(app_id, token, "⚠️ The base archive is still empty: wait for the first YouTube collection.", [])
+        if not idx.meta["entries"] or idx.outdated:
+            interaction_reply(app_id, token, "⏳ The base archive is being updated. Please try again in a few minutes.", [])
             return 0
         per_image, n_arch = [], len(idx.meta["entries"])
         for url in urls[:3]:
@@ -1109,6 +1184,9 @@ def main():
     (idx.root / "CHANGED").unlink(missing_ok=True)
     if args.interaction:
         return run_interaction(idx, cfg)
+    if idx.outdated:
+        log("♻️  Metodo di confronto aggiornato: ricostruisco l'archivio (nessuna quota YouTube usata)")
+        idx.reset()
 
     if args.image:
         img = cv2.imread(args.image)
