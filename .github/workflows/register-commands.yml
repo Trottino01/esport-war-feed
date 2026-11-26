@@ -1,0 +1,25 @@
+name: Register Discord commands
+
+# Run this ONCE (Actions → Register Discord commands → Run workflow)
+# to add /findbase and "Find base link" to your server.
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install libraries
+        run: pip install --quiet opencv-python-headless numpy
+      - name: Register commands
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        run: python cerca_base.py --register-commands
