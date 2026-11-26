@@ -1,0 +1,82 @@
+name: Add Base (instant)
+run-name: Add base request
+
+# Started by the Cloudflare Worker when someone uses /addbase on Discord
+# (or right-click a message → Apps → Add to base archive).
+# The added bases are saved in the repository: added_bases.json + added_bases/
+on:
+  workflow_dispatch:
+    inputs:
+      app_id:
+        description: "Discord application id"
+        required: true
+      token:
+        description: "Discord interaction token"
+        required: true
+      post:
+        description: "X post link(s)"
+        required: false
+        default: ""
+      link:
+        description: "Base link(s)"
+        required: false
+        default: ""
+      image:
+        description: "Screenshot URL"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+# one addition at a time, so the saves never clash
+concurrency:
+  group: add-base
+  cancel-in-progress: false
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      INTERACTION_APP_ID: ${{ inputs.app_id }}
+      INTERACTION_TOKEN: ${{ inputs.token }}
+      ADD_POST: ${{ inputs.post }}
+      ADD_LINK: ${{ inputs.link }}
+      ADD_IMAGE: ${{ inputs.image }}
+    steps:
+      - name: Hide the interaction token
+        run: echo "::add-mask::$INTERACTION_TOKEN"
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install libraries
+        run: pip install --quiet opencv-python-headless numpy
+
+      - name: Read the post and check the bases
+        run: python cerca_base.py --add
+
+      - name: Save the new bases in the repository
+        id: save
+        run: |
+          if [ -n "$(git status --porcelain -- added_bases.json added_bases)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
+            git add added_bases.json added_bases
+            git commit -m "Add base [skip ci]"
+            for i in 1 2 3 4 5; do
+              git pull --rebase --autostash && git push && exit 0
+              sleep $((i * 3))
+            done
+            exit 1
+          fi
+
+      - name: Reply on Discord
+        if: always()
+        env:
+          SAVE_OK: ${{ steps.save.outcome }}
+        run: python cerca_base.py --add-reply
