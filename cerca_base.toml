@@ -12,7 +12,7 @@ archive_channels = []
 # Canale dove posti lo screenshot da cercare. Il bot risponde al messaggio.
 # Suggerimento: se scrivi "th19" nel messaggio, cerca solo tra le basi TH19 (più veloce e preciso).
 search_channels = [
-  "1575597860077183037",
+  "INCOLLA_QUI_ID_CANALE_CERCA_BASE",
 ]
 
 max_results = 3                 # quante basi mostrare
@@ -20,23 +20,34 @@ min_score   = 12                # sotto questo punteggio: "nessuna base abbastan
 show_nearest_when_none = true   # mostra comunque le più vicine
 
 [youtube]
-# Riempie l'archivio da solo con le basi pubblicate su YouTube: link nella
-# descrizione (o in un commento del creator) + miniatura del video come immagine.
-# Usa la chiave YOUTUBE_API_KEY_BASI (consigliata: un progetto Google separato,
-# così non consuma la quota del bot delle guerre); se manca usa YOUTUBE_API_KEY.
+# Riempie l'archivio da solo con le basi pubblicate su YouTube:
+#   • ricerche in tante lingue;
+#   • i canali che pubblicano spesso basi con link ("creator") vengono seguiti e
+#     il bot legge TUTTO il loro archivio di video (costa pochissima quota);
+#   • i video con più basi vengono usati tutti: il bot prende 3 fotogrammi del video
+#     (a 1/4, metà, 3/4) e li abbina ai link grazie ai minuti scritti in descrizione.
+# Usa la chiave YOUTUBE_API_KEY_BASI (progetto Google separato da quello del bot delle guerre).
 enabled     = true
-town_halls  = ["TH19"]          # tieni solo i link di questi municipi (es. ["TH19", "TH18"])
+town_halls  = ["TH19"]          # tieni solo i link di questi municipi
 every_hours = 24                # una raccolta al giorno
-pages       = 2                 # pagine di risultati per ricerca, nei giorni normali
+pages       = 1                 # pagine di risultati per ricerca, nei giorni normali
 backfill_days  = 365            # al primo avvio: quanto indietro andare
-backfill_pages = 4              # al primo avvio: pagine per ricerca (ordinate per data e per popolarità)
+backfill_pages = 1              # al primo avvio: pagine per ricerca (per data e per popolarità)
 check_creator_comments = true   # se il link non è in descrizione, guarda i commenti del creator
-# Ogni pagina costa 100 unità (limite gratuito 10.000/giorno per progetto).
-# Primo avvio ≈ 4.000-5.000 unità, poi ≈ 1.000-1.500 al giorno.
+creator_min_videos    = 2       # un canale diventa "creator" dopo 2 video con link di basi
+creator_pages_per_run = 120     # pagine da 50 video lette ogni giorno dagli archivi dei creator (1 unità l'una)
+max_quota_per_run     = 8000    # tetto di sicurezza (limite gratuito: 10.000 unità al giorno)
+# Ogni ricerca costa 100 unità: 26 ricerche ≈ 2.600 unità al giorno (5.200 il primo giorno).
 queries = [
-  "th19 base link",
-  "th19 war base link",
-  "town hall 19 base link",
-  "th19 anti 3 star base",
-  "th19 base",
+  # inglese
+  "th19 base link", "th19 war base link", "town hall 19 base link", "th19 base",
+  "th19 anti 3 star base", "th19 legend base link", "th19 cwl base", "th19 esports base",
+  # giapponese, coreano, cinese
+  "クラクラ th19 配置", "th19 配置 リンク", "th19 배치", "클래시오브클랜 19홀 배치",
+  "部落冲突 19本 阵型", "th19 阵型 链接",
+  # spagnolo, portoghese, italiano, francese, tedesco
+  "th19 mejor base", "ayuntamiento 19 base", "cv19 base link", "melhor base cv19",
+  "th19 base migliore", "hdv 19 base", "rathaus 19 base",
+  # russo, turco, indonesiano, vietnamita, arabo
+  "тх19 база", "th19 köy düzeni", "base th19 terbaik", "base th19 mạnh nhất", "قاعدة تاون هول 19",
 ]
