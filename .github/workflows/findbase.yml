@@ -1,0 +1,61 @@
+name: Find Base (instant)
+run-name: Find base request
+
+# Started by the Cloudflare Worker when someone uses /findbase on Discord.
+on:
+  workflow_dispatch:
+    inputs:
+      app_id:
+        description: "Discord application id"
+        required: true
+      token:
+        description: "Discord interaction token"
+        required: true
+      images:
+        description: "Image URLs (JSON list)"
+        required: true
+      townhall:
+        description: "Town Hall filter (e.g. th19)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  answer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      INTERACTION_APP_ID: ${{ inputs.app_id }}
+      INTERACTION_TOKEN: ${{ inputs.token }}
+      INTERACTION_IMAGES: ${{ inputs.images }}
+      INTERACTION_TH: ${{ inputs.townhall }}
+    steps:
+      - name: Hide the interaction token
+        run: echo "::add-mask::$INTERACTION_TOKEN"
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install libraries
+        run: pip install --quiet opencv-python-headless numpy
+
+      - name: Current week
+        id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore base archive
+        uses: actions/cache/restore@v4
+        with:
+          path: base_index
+          key: base-index-v1-${{ steps.week.outputs.week }}-none
+          restore-keys: |
+            base-index-v1-${{ steps.week.outputs.week }}-
+            base-index-v1-
+
+      - name: Search and reply on Discord
+        run: python cerca_base.py --interaction
