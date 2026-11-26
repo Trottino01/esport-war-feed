@@ -1,0 +1,77 @@
+name: Cerca Base
+
+on:
+  schedule:
+    # Ogni 5 minuti. Se il repository è PRIVATO usa "*/20 * * * *"
+    # per restare nei minuti gratuiti.
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      rebuild:
+        description: "Ricostruisci l'archivio da zero"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cerca-base
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Installa le librerie
+        run: pip install --quiet opencv-python-headless numpy
+
+      - name: Settimana corrente
+        id: week
+        run: echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      # L'archivio (screenshot già analizzati) viene tenuto nella cache di GitHub
+      # e ricostruito da zero ogni settimana, così le basi cancellate spariscono.
+      - name: Recupera l'archivio
+        if: ${{ !inputs.rebuild }}
+        uses: actions/cache/restore@v4
+        with:
+          path: base_index
+          key: base-index-v1-${{ steps.week.outputs.week }}-${{ github.run_id }}
+          restore-keys: base-index-v1-${{ steps.week.outputs.week }}-
+
+      # Elenco dei video YouTube già esaminati: resta tra una settimana e l'altra
+      - name: Recupera il catalogo YouTube
+        uses: actions/cache/restore@v4
+        with:
+          path: yt_catalog
+          key: yt-catalog-v1-${{ github.run_id }}
+          restore-keys: yt-catalog-v1-
+
+      - name: Aggiorna l'archivio e rispondi alle richieste
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          YOUTUBE_API_KEY_BASI: ${{ secrets.YOUTUBE_API_KEY_BASI }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: python cerca_base.py
+
+      - name: Salva il catalogo YouTube
+        if: always() && hashFiles('yt_catalog/CHANGED') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: yt_catalog
+          key: yt-catalog-v1-${{ github.run_id }}
+
+      - name: Salva l'archivio
+        if: always() && hashFiles('base_index/CHANGED') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: base_index
+          key: base-index-v1-${{ steps.week.outputs.week }}-${{ github.run_id }}
