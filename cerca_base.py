@@ -216,7 +216,7 @@ def _sym_mats(r):
     return mats
 
 
-def _score_symmetric(inst, s, max_hyp=400, rng=None):
+def _score_symmetric(inst, s, max_hyp=400, rng=None, ratios=None):
     if len(inst) < 6:
         return 0
     cb = np.float32([i[0] for i in inst]); cq = np.float32([i[1] for i in inst])
@@ -225,7 +225,7 @@ def _score_symmetric(inst, s, max_hyp=400, rng=None):
     hyp = np.arange(n) if n <= max_hyp else (rng or np.random.default_rng(0)).choice(n, max_hyp, replace=False)
     best = 0
     tol = 5.0
-    for r in RATIOS:
+    for r in (ratios or RATIOS):
         for L in _sym_mats(r):
             A = np.eye(2) - L
             U, S, Vt = np.linalg.svd(A)
@@ -266,7 +266,7 @@ def _score_symmetric(inst, s, max_hyp=400, rng=None):
     return best
 
 
-def score(q, b):
+def score(q, b, fast=False):
     """Punteggio di somiglianza (edifici allineati) e metodo: "A" stesso orientamento, "B" ruotata/specchiata."""
     m = _matches(q, b)
     if m is None:
@@ -282,7 +282,8 @@ def score(q, b):
     ka = "M" if _score_affine.mirrored else "A"
     if a >= 60:                      # già evidente: inutile provare le rotazioni
         return a, ka
-    bsc = _score_symmetric(_instances(Q, B, bidx, s), s)
+    bsc = _score_symmetric(_instances(Q, B, bidx, s), s, max_hyp=150 if fast else 400,
+                           ratios=(0.75,) if fast else None)
     return (a, ka) if a >= bsc else (bsc, "B")
 
 
@@ -717,7 +718,9 @@ def yt_get(endpoint, params, key):
 
 
 class Catalog:
-    """Elenco persistente dei video YouTube già esaminati (non si rifà ogni settimana)."""
+    """Elenco persistente dei video YouTube esaminati e dei creator di basi (non si rifà ogni settimana)."""
+    VERSION = 2
+
     def __init__(self, root: Path):
         self.root = root
         root.mkdir(parents=True, exist_ok=True)
@@ -725,6 +728,24 @@ class Catalog:
         self.data = json.loads(p.read_text()) if p.exists() else {"items": {}, "seen": {}, "last_run": None}
         self.changed = False
         (root / "CHANGED").unlink(missing_ok=True)
+        self._migrate()
+
+    def _migrate(self):
+        d = self.data
+        d.setdefault("creators", {})
+        d.setdefault("recheck", [])
+        d.setdefault("queries_done", [])
+        if d.get("v", 1) < 2:
+            if d.get("last_run"):                           # ricerche della prima versione: già fatte
+                d["queries_done"] = ["th19 base link", "th19 war base link", "town hall 19 base link",
+                                     "th19 anti 3 star base", "th19 base"]
+            for it in d["items"].values():                  # vecchio formato: un solo link per video
+                if "link" in it and "links" not in it:
+                    it["links"] = [[it.pop("link"), None]]
+            # i video con più basi prima venivano saltati: ora vanno riesaminati
+            d["recheck"] = sorted({v for v, st in d["seen"].items() if st == "multi"} | set(d["recheck"]))
+            d["v"] = 2
+            self.changed = True
 
     def save(self):
         (self.root / "catalog.json.tmp").write_text(json.dumps(self.data, ensure_ascii=False))
@@ -740,6 +761,63 @@ def best_thumb(thumbs):
     return None
 
 
+TS_RE = re.compile(r"(?<![\d:])(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?![\d:])")
+
+
+def _secs(m):
+    h, mi, s = m.groups()
+    return int(h or 0) * 3600 + int(mi) * 60 + int(s)
+
+
+def links_with_times(text):
+    """Link di basi nell'ordine in cui compaiono, con il minuto del video se scritto
+    sulla stessa riga o nelle 2 righe precedenti (es. "1:20 Base 2 → link")."""
+    out, seen = [], set()
+    last_ts, last_line = None, -10
+    for n, line in enumerate(text.splitlines()):
+        tss = list(TS_RE.finditer(line))
+        if tss:
+            last_ts, last_line = _secs(tss[0]), n
+        for l in LINK_RE.findall(line):
+            l = l.rstrip(".,;:!*_~|")
+            lid = layout_id(l)
+            if not lid or lid in seen:
+                continue
+            seen.add(lid)
+            out.append([l, last_ts if n - last_line <= 2 else None])
+    return out
+
+
+def _video_record(vid, sn, extra_links=()):
+    text = sn.get("title", "") + "\n" + sn.get("description", "")
+    links = links_with_times(text)
+    have = {layout_id(l) for l, _ in links}
+    for l in extra_links:                                   # link trovati nei commenti del creator
+        l = l.rstrip(".,;:!*_~|")
+        if layout_id(l) and layout_id(l) not in have:
+            have.add(layout_id(l)); links.append([l, None])
+    thumb = best_thumb(sn.get("thumbnails"))
+    return {"links": links, "thumb": thumb, "title": sn.get("title", ""), "channel": sn.get("channelTitle", ""),
+            "channel_id": sn.get("channelId") or sn.get("videoOwnerChannelId", ""), "ts": sn.get("publishedAt", "")}
+
+
+def _accept(cat, vid, rec, th_ok):
+    """Salva il video se ha almeno un link del municipio giusto."""
+    seen, items = cat.data["seen"], cat.data["items"]
+    if not rec["links"]:
+        seen[vid] = "none"
+        return False
+    if th_ok and not any(th_of(l) in th_ok for l, _ in rec["links"]):
+        seen[vid] = "th"
+        return False
+    if not rec["thumb"]:
+        seen[vid] = "skip"
+        return False
+    seen[vid] = "ok" if len(rec["links"]) == 1 else "multi_ok"
+    items[vid] = rec
+    return True
+
+
 def youtube_collect(ycfg: dict, cat: Catalog, key: str):
     if not ycfg.get("enabled", True):
         return 0
@@ -748,26 +826,39 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
         return 0
     now = time.time()
     last = cat.data.get("last_run")
-    if last and now - last < float(ycfg.get("every_hours", 24)) * 3600 - 300:
-        return 0
-    first = last is None
-    since = (now - float(ycfg.get("backfill_days", 365)) * 86400) if first else last - 2 * 86400
-    since_iso = datetime.fromtimestamp(since, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    pages = int(ycfg.get("backfill_pages" if first else "pages", 4 if first else 2))
+    pending = (set(ycfg.get("queries", [])) - set(cat.data.get("queries_done", []))) or cat.data.get("recheck")
+    if last and now - last < float(ycfg.get("every_hours", 24)) * 3600 - 300 and not pending:
+        return 0                                        # (ricerche nuove o video da riesaminare: subito)
+    back_iso = datetime.fromtimestamp(now - float(ycfg.get("backfill_days", 365)) * 86400,
+                                      timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    recent_iso = datetime.fromtimestamp((last or now) - 2 * 86400, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    done_q = set(cat.data.get("queries_done", []))
     th_ok = {t.upper() for t in ycfg.get("town_halls", ["TH19"])}
-    seen, items = cat.data["seen"], cat.data["items"]
-    new_ids, quota = [], 0
-    orders = ["date", "relevance"] if first else ["date"]
+    seen, items, creators = cat.data["seen"], cat.data["items"], cat.data["creators"]
+    quota, added = 0, 0
+    budget = int(ycfg.get("max_quota_per_run", 8000))
+    stop = False
+
+    # 1) ricerche (tutte le lingue)
+    new_ids = []
     for qtext in ycfg.get("queries", []):
+        fresh_q = qtext not in done_q                       # ricerca nuova: guarda indietro di un anno
+        orders = ["date", "relevance"] if fresh_q else ["date"]
+        pages = int(ycfg.get("backfill_pages" if fresh_q else "pages", 1))
+        ok_q = True
         for order in orders:
             params = {"part": "id", "q": qtext, "type": "video", "order": order, "maxResults": 50}
             if order == "date":
-                params["publishedAfter"] = since_iso
+                params["publishedAfter"] = back_iso if fresh_q else recent_iso
             for _ in range(max(1, pages)):
+                if quota + 100 > budget:
+                    stop = True
+                    break
                 try:
                     data = yt_get("search", params, key)
                 except Exception as e:
                     log(f"⚠️  Ricerca YouTube '{qtext}' non riuscita: {e}")
+                    ok_q = False
                     break
                 quota += 100
                 for it in data.get("items", []):
@@ -777,7 +868,16 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
                 if not data.get("nextPageToken"):
                     break
                 params["pageToken"] = data["nextPageToken"]
-    added = 0
+            if stop:
+                ok_q = False
+                break
+        if ok_q:
+            done_q.add(qtext)
+    cat.data["queries_done"] = sorted(done_q)
+    new_ids += [v for v in cat.data.get("recheck", []) if v not in new_ids]
+    cat.data["recheck"] = []
+
+    # 2) dettagli dei video trovati (1 unità ogni 50 video)
     for i in range(0, len(new_ids), 50):
         try:
             data = yt_get("videos", {"part": "snippet", "id": ",".join(new_ids[i:i + 50])}, key)
@@ -787,9 +887,8 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
         quota += 1
         for v in data.get("items", []):
             sn = v.get("snippet") or {}
-            text = sn.get("title", "") + "\n" + sn.get("description", "")
-            links = LINK_RE.findall(text)
-            if not links and ycfg.get("check_creator_comments", True):
+            extra = []
+            if not LINK_RE.search(sn.get("title", "") + sn.get("description", "")) and ycfg.get("check_creator_comments", True):
                 try:
                     cm = yt_get("commentThreads", {"part": "snippet", "videoId": v["id"], "maxResults": 20,
                                                    "order": "relevance", "textFormat": "plainText"}, key)
@@ -797,58 +896,162 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
                     for c in cm.get("items", []):
                         top = ((c.get("snippet") or {}).get("topLevelComment") or {}).get("snippet") or {}
                         if (top.get("authorChannelId") or {}).get("value") == sn.get("channelId"):
-                            links += LINK_RE.findall(top.get("textDisplay", "") + " " + top.get("textOriginal", ""))
+                            extra += LINK_RE.findall(top.get("textDisplay", "") + " " + top.get("textOriginal", ""))
                 except Exception:
                     pass                      # commenti disattivati
-            uniq = {}
-            for l in links:
-                lid = layout_id(l.rstrip(".,;:!*_~|"))
-                if lid:
-                    uniq.setdefault(lid, l.rstrip(".,;:!*_~|"))
-            seen[v["id"]] = "multi" if len(uniq) > 1 else ("none" if not uniq else "ok")
-            if len(uniq) != 1:
-                continue                      # 0 link, oppure video con tante basi: la miniatura non dice quale
-            link = next(iter(uniq.values()))
-            th = th_of(link)
-            if th_ok and th not in th_ok:
-                seen[v["id"]] = "th"
-                continue
-            thumb = best_thumb(sn.get("thumbnails"))
-            if not thumb:
-                continue
-            items[v["id"]] = {"link": link, "th": th, "thumb": thumb, "title": sn.get("title", ""),
-                              "channel": sn.get("channelTitle", ""), "ts": sn.get("publishedAt", "")}
-            added += 1
+            rec = _video_record(v["id"], sn, extra)
+            if rec["links"] and rec["channel_id"]:          # conta i video con link per canale
+                c = creators.setdefault(rec["channel_id"], {"name": rec["channel"], "hits": 0})
+                c["hits"] = c.get("hits", 0) + 1
+            if _accept(cat, v["id"], rec, th_ok):
+                added += 1
     for vid in new_ids:
         seen.setdefault(vid, "skip")
+
+    # 3) creator di basi: leggi tutto il loro archivio di video (1 unità ogni 50 video)
+    min_hits = int(ycfg.get("creator_min_videos", 2))
+    crawl_pages = int(ycfg.get("creator_pages_per_run", 120))
+    used_pages = 0
+    for cid, c in sorted(creators.items(), key=lambda kv: -kv[1].get("hits", 0)):
+        if c.get("hits", 0) < min_hits or not cid.startswith("UC"):
+            continue
+        if stop or used_pages >= crawl_pages or quota + 1 > budget:
+            break
+        token = c.get("next") if not c.get("done") else None
+        pages_here = 0
+        while True:
+            params = {"part": "snippet", "playlistId": "UU" + cid[2:], "maxResults": 50}
+            if token:
+                params["pageToken"] = token
+            try:
+                data = yt_get("playlistItems", params, key)
+            except Exception as e:
+                log(f"⚠️  Archivio del canale {c.get('name', cid)} non leggibile: {e}")
+                c["done"] = True
+                break
+            quota += 1; used_pages += 1; pages_here += 1
+            fresh = 0
+            for it in data.get("items", []):
+                sn = it.get("snippet") or {}
+                vid = (sn.get("resourceId") or {}).get("videoId")
+                if not vid or vid in seen:
+                    continue
+                fresh += 1
+                sn = dict(sn); sn.setdefault("channelId", cid)
+                if _accept(cat, vid, _video_record(vid, sn), th_ok):
+                    added += 1
+                else:
+                    seen.setdefault(vid, "skip")
+            token = data.get("nextPageToken")
+            if c.get("done") and fresh == 0:                # già letto tutto: basta la prima pagina
+                break
+            if not token:
+                c["done"], c["next"] = True, None
+                break
+            if used_pages >= crawl_pages or quota + 1 > budget:
+                c["next"] = token                            # si riprende al giro successivo
+                break
+        c["name"] = c.get("name") or cid
+
+    # 4) durata dei video con più basi (serve per abbinare i fotogrammi ai link)
+    need = [v for v, it in items.items() if len(it["links"]) > 1 and "dur" not in it]
+    for i in range(0, len(need), 50):
+        try:
+            data = yt_get("videos", {"part": "contentDetails", "id": ",".join(need[i:i + 50])}, key)
+        except Exception:
+            break
+        quota += 1
+        for v in data.get("items", []):
+            items[v["id"]]["dur"] = iso_duration_seconds((v.get("contentDetails") or {}).get("duration"))
+
     cat.data["last_run"] = now
     cat.changed = True
-    log(f"▶️  YouTube: {len(new_ids)} video nuovi esaminati, {added} basi con link aggiunte "
-        f"(quota usata ≈ {quota} unità)")
+    n_creators = sum(1 for c in creators.values() if c.get("hits", 0) >= min_hits)
+    log(f"▶️  YouTube: {len(new_ids)} video esaminati dalle ricerche, {added} con link TH19 aggiunti, "
+        f"{n_creators} creator seguiti (quota usata ≈ {quota} unità)")
     return added
 
 
-def index_youtube(idx: Index, cat: Catalog, deadline):
+def iso_duration_seconds(s):
+    m = re.fullmatch(r"P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?", s or "")
+    if not m:
+        return None
+    d, h, mi, se = (int(x) if x else 0 for x in m.groups())
+    return d * 86400 + h * 3600 + mi * 60 + se
+
+
+def frame_urls(vid, n):
+    """Fotogrammi automatici di YouTube (n = 1, 2, 3 → circa 25%, 50%, 75% del video)."""
+    return [f"https://i.ytimg.com/vi/{vid}/{p}{n}.jpg" for p in ("maxres", "sd", "hq")]
+
+
+def _pick_link(links, frac, dur):
+    """Quale link corrisponde al fotogramma a 'frac' del video."""
+    timed = [(t, l) for l, t in links if t is not None]
+    if dur and len(timed) >= max(2, len(links) // 2):
+        t_f = frac * dur
+        best = None
+        for t, l in sorted(timed):
+            if t <= t_f + 3:
+                best = l
+        return (best or sorted(timed)[0][1]), int(t_f), False
+    idx = min(len(links) - 1, int(frac * len(links)))  # niente minuti: si stima dall'ordine
+    return links[idx][0], (int(frac * dur) if dur else None), True
+
+
+def index_youtube(idx: Index, cat: Catalog, deadline, th_ok=("TH19",)):
     added = 0
+    th_ok = {t.upper() for t in th_ok}
+    failed = idx.meta.setdefault("failed", {})
     for vid, it in cat.data["items"].items():
-        key = f"yt_{vid}"
-        if key in idx.meta["entries"] or key in idx.meta.setdefault("failed", {}):
+        links = it.get("links") or ([[it["link"], None]] if it.get("link") else [])
+        if not links:
             continue
-        if time.time() > deadline:
-            log("⏱️  Tempo quasi finito: continuo con le miniature al prossimo giro")
-            break
-        try:
-            img = decode_image(download(it["thumb"]))
-        except Exception:
-            img = None
-        if img is None or not idx.add(key, img, it["link"], f"https://www.youtube.com/watch?v={vid}", time.time(),
-                                      img_url=it["thumb"]):
-            idx.meta["failed"][key] = 1
-            idx.changed = True
+        ok_links = [l for l, _ in links if not th_ok or th_of(l) in th_ok]
+        if not ok_links:
             continue
-        added += 1
-        if added % 25 == 0:
-            idx.save()
+        watch = f"https://www.youtube.com/watch?v={vid}"
+        jobs = []
+        if len(links) == 1:
+            jobs.append((f"yt_{vid}", it["thumb"], links[0][0], watch, None, False, False))
+        else:
+            jobs.append((f"yt_{vid}_t", it["thumb"], None, watch, ok_links, True, False))
+            for n, frac in ((1, 0.25), (2, 0.5), (3, 0.75)):
+                link, t, guess = _pick_link(links, frac, it.get("dur"))
+                if link not in ok_links:
+                    continue
+                jump = watch + (f"&t={t}s" if t else "")
+                jobs.append((f"yt_{vid}_f{n}", frame_urls(vid, n), link, jump, ok_links, guess, True))
+        for key, url, link, jump, all_links, guess, need_area in jobs:
+            if key in idx.meta["entries"] or key in failed:
+                continue
+            if time.time() > deadline:
+                log("⏱️  Tempo quasi finito: continuo con le immagini al prossimo giro")
+                return added
+            img, used = None, None
+            for u in (url if isinstance(url, list) else [url]):
+                try:
+                    img = decode_image(download(u, retries=1))
+                except Exception:
+                    img = None
+                if img is not None:
+                    used = u
+                    break
+            # un fotogramma senza area di gioco (intro, facecam...) non è una base
+            if img is None or (need_area and play_area_box(img) is None) or not idx.add(
+                    key, img, link or all_links[0], jump, time.time(), img_url=used):
+                failed[key] = 1
+                idx.changed = True
+                continue
+            e = idx.meta["entries"][key]
+            if all_links and len(all_links) > 1:
+                e["links"] = all_links
+                e["guess"] = bool(guess)
+                if link is None:
+                    e["video_only"] = True                 # miniatura di un video con più basi
+            added += 1
+            if added % 25 == 0:
+                idx.save()
     return added
 
 # ═════════════════════════════ Ricerca ═════════════════════════════
@@ -886,23 +1089,36 @@ _POOL_DATA = {}
 
 
 def _score_worker(key):
-    return key, score(_POOL_DATA["q"], _POOL_DATA["feats"][key])
+    return key, score(_POOL_DATA["q"], _POOL_DATA["feats"][key], fast=_POOL_DATA.get("fast", False))
 
 
-def _score_all(qf, feats_all, keys):
-    """Confronta lo screenshot con tutte le basi, in parallelo su tutti i processori."""
+def _score_pass(qf, feats_all, keys, fast):
     workers = min(os.cpu_count() or 1, 8)
     if workers > 1 and len(keys) >= 24:
         import multiprocessing as mp
         try:
-            _POOL_DATA["q"], _POOL_DATA["feats"] = qf, feats_all
+            _POOL_DATA.update(q=qf, feats=feats_all, fast=fast)
             with mp.get_context("fork").Pool(workers) as pool:
                 return dict(pool.map(_score_worker, keys, chunksize=max(1, len(keys) // (workers * 4))))
         except Exception as e:
             log(f"⚠️  Confronto parallelo non riuscito ({e}), procedo in sequenza")
         finally:
             _POOL_DATA.clear()
-    return {k: score(qf, feats_all[k]) for k in keys}
+    return {k: score(qf, feats_all[k], fast=fast) for k in keys}
+
+
+FULL_CHECK = 80          # quante basi ricontrollare con il confronto completo
+
+
+def _score_all(qf, feats_all, keys):
+    """Confronta lo screenshot con tutte le basi: prima un passaggio veloce su tutto l'archivio,
+    poi il confronto completo (tutte le rotazioni) sulle più promettenti."""
+    if len(keys) <= FULL_CHECK * 2:
+        return _score_pass(qf, feats_all, keys, fast=False)
+    first = _score_pass(qf, feats_all, keys, fast=True)
+    top = sorted(keys, key=lambda k: -first[k][0])[:FULL_CHECK]
+    first.update(_score_pass(qf, feats_all, top, fast=False))
+    return first
 
 
 def search(idx: Index, qf, th=None, top=3):
@@ -914,16 +1130,25 @@ def search(idx: Index, qf, th=None, top=3):
     for key in keys:
         e = idx.meta["entries"][key]
         sc, how = all_scores[key]
-        cur = best_by_link.get(e["link"])
+        group = ("video:" + key.split("_")[1]) if e.get("video_only") else e["link"]
+        cur = best_by_link.get(group)
         if cur is None or sc > cur[0]:
-            best_by_link[e["link"]] = (sc, how, e, key)
+            best_by_link[group] = (sc, how, e, key)
     ranked = sorted(best_by_link.values(), key=lambda x: -x[0])
-    scores = [r[0] for r in ranked]
+
+    def video_of(key):
+        return key.split("_")[1] if key.startswith("yt_") else key
+
     results = []
     for k, (sc, how, e, key) in enumerate(ranked[:top]):
-        results.append({"score": sc, "pct": match_percent(scores, k), "how": how,
+        # le altre immagini dello STESSO video (miniatura, altri fotogrammi) non sono concorrenti
+        same = video_of(key)
+        scores = [r[0] for i, r in enumerate(ranked) if i == k or video_of(r[3]) != same]
+        kk = scores.index(sc) if sc in scores else 0
+        results.append({"score": sc, "pct": match_percent(scores, kk), "how": how,
                         "link": e["link"], "th": e.get("th"), "jump": e["jump"], "img": entry_image(key, e),
-                        "key": key, "img_exact": bool(e.get("img")), "area": e.get("area")})
+                        "key": key, "img_exact": bool(e.get("img")), "area": e.get("area"),
+                        "links": e.get("links"), "guess": e.get("guess", False), "video_only": e.get("video_only", False)})
     if results:                       # immagine pulita della base trovata (solo per la prima)
         results[0]["crop"] = card_image(qf, feats_all.get(results[0]["key"]), results[0])
     return results, len(feats_all)
@@ -987,11 +1212,24 @@ def build_reply(per_image, n_archive, cfg):
         kind = {"A": "same orientation", "M": "mirrored"}.get(r["how"], "rotated/mirrored")
         src = "▶️ Source video" if "youtube.com" in r["jump"] else "💬 Original post"
         desc = f"**[📋 Copy base in game]({r['link']})**\n[{src}]({r['jump']}) · {kind}"
+        many = [l for l in (r.get("links") or []) if l]
+        if r.get("video_only") and len(many) > 1:
+            # miniatura di un video con più basi: non si sa quale sia, mostra tutti i link
+            desc = (f"This video shows **{len(many)} bases** and the picture matches one of them:\n"
+                    + " · ".join(f"[Base {i}]({l})" for i, l in enumerate(many[:12], 1))
+                    + f"\n[{src}]({r['jump']}) · {kind}")
+        elif len(many) > 1:
+            others = [l for l in many if l != r["link"]][:10]
+            note = " (guessed from the order of the video)" if r.get("guess") else ""
+            desc += (f"\nThis video has {len(many)} bases{note}. Not this one? "
+                     + " · ".join(f"[{i}]({l})" for i, l in enumerate(others, 2)))
         if alt and len(results) > 1:
             desc += "\n\nOther candidates: " + " · ".join(
                 f"[{x['pct']}%]({x['link']})" for x in results[1:])
-        emb = {"title": f"{r['pct']}% match" + (f" · {r['th']}" if r.get("th") else "") + " · tap to copy",
-               "url": r["link"], "description": desc, "color": COLORS[level(r["pct"])]}
+        title = f"{r['pct']}% match" + (f" · {r['th']}" if r.get("th") else "")
+        title += " · pick the base below" if (r.get("video_only") and len(many) > 1) else " · tap to copy"
+        emb = {"title": title, "url": r["jump"] if (r.get("video_only") and len(many) > 1) else r["link"],
+               "description": desc[:4000], "color": COLORS[level(r["pct"])]}
         if r.get("crop"):
             name = f"base_{k + 1}.jpg"
             files.append((name, r["crop"]))
@@ -1215,7 +1453,7 @@ def main():
         if key.startswith("yt_") and not e.get("img") and key[3:] in cat.data["items"]:
             e["img"] = cat.data["items"][key[3:]]["thumb"]
             idx.changed = True
-    added += index_youtube(idx, cat, idx_deadline)
+    added += index_youtube(idx, cat, idx_deadline, ycfg.get("town_halls", ["TH19"]))
     idx.save()
     n_yt = sum(1 for k in idx.meta["entries"] if k.startswith("yt_"))
     log(f"📚 Archivio: {len(idx.meta['entries'])} basi ({n_yt} da YouTube, +{added} nuove)")
