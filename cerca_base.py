@@ -355,7 +355,7 @@ class Index:
         if self.changed:
             (self.root / "CHANGED").write_text("1")
 
-    def add(self, key, img, link, jump, ts):
+    def add(self, key, img, link, jump, ts, img_url=None):
         if key in self.meta["entries"]:
             return False
         pts, desc, sizes = feats(img)
@@ -363,6 +363,8 @@ class Index:
             return False
         np.savez_compressed(self.fdir / f"{key}.npz", p=pts, d=desc, s=sizes.astype(np.float16))
         self.meta["entries"][key] = {"link": link, "th": th_of(link), "jump": jump, "ts": ts}
+        if img_url:
+            self.meta["entries"][key]["img"] = img_url
         self.changed = True
         self._cache = None
         return True
@@ -665,7 +667,8 @@ def index_youtube(idx: Index, cat: Catalog, deadline):
             img = decode_image(download(it["thumb"]))
         except Exception:
             img = None
-        if img is None or not idx.add(key, img, it["link"], f"https://www.youtube.com/watch?v={vid}", time.time()):
+        if img is None or not idx.add(key, img, it["link"], f"https://www.youtube.com/watch?v={vid}", time.time(),
+                                      img_url=it["thumb"]):
             idx.meta["failed"][key] = 1
             idx.changed = True
             continue
@@ -675,6 +678,33 @@ def index_youtube(idx: Index, cat: Catalog, deadline):
     return added
 
 # ═════════════════════════════ Ricerca ═════════════════════════════
+
+def entry_image(key, e):
+    if e.get("img"):
+        return e["img"]
+    if key.startswith("yt_"):
+        return f"https://i.ytimg.com/vi/{key[3:]}/hqdefault.jpg"
+    return None
+
+
+def match_percent(scores, k):
+    """Quanto il risultato k spicca su tutte le altre basi dell'archivio (0-99%).
+
+    Si confronta il punteggio con quello "di fondo" delle basi non correlate
+    (mediana e dispersione) e con il risultato successivo: una base giusta
+    stacca nettamente sia il resto dell'archivio sia la seconda classificata.
+    """
+    s = scores
+    bg = s[3:] if len(s) >= 8 else s[1:]
+    med = float(np.median(bg)) if len(bg) else 8.0
+    mad = float(np.median(np.abs(np.asarray(bg) - med))) * 1.4826 if len(bg) else 1.5
+    sd = max(mad, 1.0, 0.08 * med)
+    z = (s[k] - med) / sd
+    gap = (s[k] - (s[k + 1] if k + 1 < len(s) else med)) / sd
+    e = 0.5 * z + 0.5 * gap
+    pct = 100.0 / (1.0 + np.exp(-(e - 4.5) * 1.2))
+    return int(max(0, min(99, round(pct))))
+
 
 def search(idx: Index, qf, th=None, top=3):
     feats_all = idx.load_all()
@@ -686,45 +716,64 @@ def search(idx: Index, qf, th=None, top=3):
         sc, how = score(qf, bf)
         cur = best_by_link.get(e["link"])
         if cur is None or sc > cur[0]:
-            best_by_link[e["link"]] = (sc, how, e)
+            best_by_link[e["link"]] = (sc, how, e, key)
     ranked = sorted(best_by_link.values(), key=lambda x: -x[0])
-    return ranked[:top], (ranked[top][0] if len(ranked) > top else 0), len(feats_all)
+    scores = [r[0] for r in ranked]
+    results = []
+    for k, (sc, how, e, key) in enumerate(ranked[:top]):
+        results.append({"score": sc, "pct": match_percent(scores, k), "how": how,
+                        "link": e["link"], "th": e.get("th"), "jump": e["jump"], "img": entry_image(key, e)})
+    return results, len(feats_all)
 
 
 def confidence(results, cfg):
     if not results:
         return "none"
-    s1 = results[0][0]
-    s2 = results[1][0] if len(results) > 1 else 0
-    if s1 < cfg.get("min_score", 12):
-        return "none"
-    if (results[0][1] in ("A", "M") and s1 >= 60) or s1 >= 2.0 * max(s2, 1):
+    p = results[0]["pct"]
+    if p >= 80:
         return "high"
-    if s1 >= 1.25 * max(s2, 1) and s1 >= 15:
+    if p >= 50:
         return "mid"
-    return "low"
+    if p >= 25:
+        return "low"
+    return "none"
 
 
-def format_reply(per_image, n_archive, cfg):
-    lines = []
+COLORS = {"high": 0x2ECC71, "mid": 0xF1C40F, "low": 0xE74C3C, "none": 0x95A5A6}
+
+
+def level(p):
+    return "high" if p >= 80 else "mid" if p >= 50 else "low" if p >= 25 else "none"
+
+
+def build_reply(per_image, n_archive, cfg):
+    """Testo in alto + una scheda (embed) per ogni base trovata, con immagine e link cliccabile."""
+    heads, embeds = [], []
     for k, (results, conf) in enumerate(per_image):
-        if len(per_image) > 1:
-            lines.append(f"**Image {k + 1}**")
-        head = {"high": "🟢 **Match found** (very likely)",
-                "mid": "🟡 **Likely match**",
-                "low": "🔴 **Uncertain**: this base may not be in the archive, here are the closest ones",
-                "none": "⚪ **No similar base** in the archive"}[conf]
-        lines.append(head)
+        pre = f"**Image {k + 1}:** " if len(per_image) > 1 else ""
+        best = f" ({results[0]['pct']}%)" if results else ""
+        heads.append(pre + {"high": "🟢 **Match found**" + best,
+                            "mid": "🟡 **Likely match**" + best,
+                            "low": "🔴 **Uncertain**: this base may not be in the archive, here are the closest ones",
+                            "none": "⚪ **No similar base** in the archive"}[conf])
         if conf == "none" and not cfg.get("show_nearest_when_none", True):
             continue
-        for i, (sc, how, e) in enumerate(results, 1):
-            th = f"{e['th']} · " if e.get("th") else ""
-            kind = {"A": "same orientation", "M": "mirrored"}.get(how, "rotated/mirrored")
-            src = "▶️ video" if "youtube.com" in e["jump"] else "original post"
-            lines.append(f"`{i}.` {th}score **{sc}** ({kind}) · [📋 copy in game]({e['link']}) · [{src}]({e['jump']})")
-        lines.append("")
-    lines.append(f"-# Archive: {n_archive} bases · tip: add \"th19\" to your message to search only TH19 bases")
-    return "\n".join(lines)[:1990]
+        for i, r in enumerate(results, 1):
+            kind = {"A": "same orientation", "M": "mirrored"}.get(r["how"], "rotated/mirrored")
+            src = "▶️ Source video" if "youtube.com" in r["jump"] else "💬 Original post"
+            emb = {
+                "title": f"#{i} · {r['pct']}% match" + (f" · {r['th']}" if r.get("th") else ""),
+                "url": r["link"],
+                "description": f"**[📋 Copy base in game]({r['link']})**\n[{src}]({r['jump']}) · {kind}",
+                "color": COLORS[level(r["pct"])],
+            }
+            if r.get("img"):
+                emb["image"] = {"url": r["img"]}
+            embeds.append(emb)
+    embeds = embeds[:10]
+    if embeds:
+        embeds[-1]["footer"] = {"text": f"Archive: {n_archive} bases · add \"th19\" to your message to search only TH19 bases"}
+    return "\n".join(heads)[:1990], embeds
 
 
 def answer_queries(idx: Index, token, search_ids, cfg, deadline):
@@ -769,18 +818,18 @@ def answer_queries(idx: Index, token, search_ids, cfg, deadline):
                     per_image.append(([], "none"))
                     continue
                 qf = feats(img)
-                results, _, n_arch = search(idx, qf, th, int(cfg.get("max_results", 3)))
+                results, n_arch = search(idx, qf, th, int(cfg.get("max_results", 3)))
                 per_image.append((results, confidence(results, cfg)))
-                log(f"🔎 richiesta {m['id']}: " + ", ".join(f"{r[0]}{r[1]}" for r in results))
+                log(f"🔎 richiesta {m['id']}: " + ", ".join(f"{r['score']}{r['how']}={r['pct']}%" for r in results))
             if not idx.meta["entries"]:
-                content = "⚠️ The base archive is empty: check `archive_channels` in cerca_base.toml."
+                content, embeds = "⚠️ The base archive is still empty: wait for the first YouTube collection.", []
             else:
-                content = format_reply(per_image, n_arch or len(idx.meta["entries"]), cfg)
+                content, embeds = build_reply(per_image, n_arch or len(idx.meta["entries"]), cfg)
             dapi("POST", f"/channels/{cid}/messages", token, body={
                 "content": content,
+                "embeds": embeds,
                 "message_reference": {"message_id": m["id"], "fail_if_not_exists": False},
                 "allowed_mentions": {"parse": [], "replied_user": False},
-                "flags": 4,          # niente anteprime dei link
             })
             try:
                 dapi("PUT", f"/channels/{cid}/messages/{m['id']}/reactions/{urllib.parse.quote(done_emoji)}/@me", token)
@@ -810,10 +859,10 @@ def main():
 
     if args.image:
         img = cv2.imread(args.image)
-        res, _, n = search(idx, feats(img), None, int(cfg.get("max_results", 3)))
+        res, n = search(idx, feats(img), None, int(cfg.get("max_results", 3)))
         print(f"Archivio: {n} basi — affidabilità: {confidence(res, cfg)}")
-        for sc, how, e in res:
-            print(f"  {sc:4d} {how}  {e.get('th')}  {e['link']}")
+        for r in res:
+            print(f"  {r['pct']:3d}%  ({r['score']} {r['how']})  {r.get('th')}  {r['link']}")
         return 0
 
     token = os.environ.get("DISCORD_BOT_TOKEN", "").strip()
