@@ -22,6 +22,7 @@ Richiede: Python 3.11+, opencv-python-headless, numpy.
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import os
 import re
@@ -31,7 +32,7 @@ import tomllib
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import cv2
@@ -735,6 +736,8 @@ class Catalog:
         d.setdefault("creators", {})
         d.setdefault("recheck", [])
         d.setdefault("queries_done", [])
+        d.setdefault("tg", {})
+        d.setdefault("tg_items", {})
         if d.get("v", 1) < 2:
             if d.get("last_run"):                           # ricerche della prima versione: già fatte
                 d["queries_done"] = ["th19 base link", "th19 war base link", "town hall 19 base link",
@@ -801,6 +804,30 @@ def _video_record(vid, sn, extra_links=()):
             "channel_id": sn.get("channelId") or sn.get("videoOwnerChannelId", ""), "ts": sn.get("publishedAt", "")}
 
 
+TH19_TITLE_RE = re.compile(r"(?:\bth|\bcv|\bhdv|тх|town\s*hall|ayuntamiento|rathaus|h[oô]tel\s*de\s*ville)\s*-?\s*19(?!\d)"
+                           r"|19\s*(?:本|홀|級|级)", re.I)
+
+
+def _creator_comment_links(vid, channel_id, key):
+    """Link di basi scritti dal creator nei commenti (spesso nel commento fissato). Costa 1 unità."""
+    out = []
+    cm = yt_get("commentThreads", {"part": "snippet", "videoId": vid, "maxResults": 20,
+                                   "order": "relevance", "textFormat": "plainText"}, key)
+    for c in cm.get("items", []):
+        top = ((c.get("snippet") or {}).get("topLevelComment") or {}).get("snippet") or {}
+        if (top.get("authorChannelId") or {}).get("value") == channel_id:
+            out += LINK_RE.findall(top.get("textDisplay", "") + " " + top.get("textOriginal", ""))
+    return out
+
+
+def _pacific_day():
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%Y-%m-%d")
+    except Exception:
+        return datetime.now(timezone(timedelta(hours=-8))).strftime("%Y-%m-%d")
+
+
 def _accept(cat, vid, rec, th_ok):
     """Salva il video se ha almeno un link del municipio giusto."""
     seen, items = cat.data["seen"], cat.data["items"]
@@ -825,10 +852,19 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
         log("ℹ️  Raccolta da YouTube spenta: manca YOUTUBE_API_KEY_BASI (o YOUTUBE_API_KEY)")
         return 0
     now = time.time()
-    last = cat.data.get("last_run")
+    last = cat.data.get("last_run")                     # ultimo giro di ricerche
+    last_c = cat.data.get("last_creators")              # ultimo controllo dei creator
     pending = (set(ycfg.get("queries", [])) - set(cat.data.get("queries_done", []))) or cat.data.get("recheck")
-    if last and now - last < float(ycfg.get("every_hours", 24)) * 3600 - 300 and not pending:
-        return 0                                        # (ricerche nuove o video da riesaminare: subito)
+    do_search = (not last) or now - last >= float(ycfg.get("every_hours", 24)) * 3600 - 300 or bool(pending)
+    do_creators = (do_search or not last_c
+                   or now - last_c >= float(ycfg.get("creators_every_hours", 3)) * 3600 - 300)
+    if not (do_search or do_creators):
+        return 0
+    # tetto giornaliero (la quota di YouTube si azzera a mezzanotte, ora del Pacifico)
+    day = _pacific_day()
+    qd = cat.data.setdefault("quota_day", {"day": day, "used": 0})
+    if qd.get("day") != day:
+        qd.update(day=day, used=0)
     back_iso = datetime.fromtimestamp(now - float(ycfg.get("backfill_days", 365)) * 86400,
                                       timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     recent_iso = datetime.fromtimestamp((last or now) - 2 * 86400, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -836,12 +872,15 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
     th_ok = {t.upper() for t in ycfg.get("town_halls", ["TH19"])}
     seen, items, creators = cat.data["seen"], cat.data["items"], cat.data["creators"]
     quota, added = 0, 0
-    budget = int(ycfg.get("max_quota_per_run", 8000))
+    budget = min(int(ycfg.get("max_quota_per_run", 8000)), int(ycfg.get("daily_quota", 9500)) - int(qd.get("used", 0)))
+    if budget < 20:
+        log(f"ℹ️  YouTube: quota di oggi quasi finita ({qd.get('used')} unità usate), riprendo domani")
+        return 0
     stop = False
 
     # 1) ricerche (tutte le lingue)
     new_ids = []
-    for qtext in ycfg.get("queries", []):
+    for qtext in (ycfg.get("queries", []) if do_search else []):
         fresh_q = qtext not in done_q                       # ricerca nuova: guarda indietro di un anno
         orders = ["date", "relevance"] if fresh_q else ["date"]
         pages = int(ycfg.get("backfill_pages" if fresh_q else "pages", 1))
@@ -874,8 +913,9 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
         if ok_q:
             done_q.add(qtext)
     cat.data["queries_done"] = sorted(done_q)
-    new_ids += [v for v in cat.data.get("recheck", []) if v not in new_ids]
-    cat.data["recheck"] = []
+    if do_search:
+        new_ids += [v for v in cat.data.get("recheck", []) if v not in new_ids]
+        cat.data["recheck"] = []
 
     # 2) dettagli dei video trovati (1 unità ogni 50 video)
     for i in range(0, len(new_ids), 50):
@@ -890,13 +930,8 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
             extra = []
             if not LINK_RE.search(sn.get("title", "") + sn.get("description", "")) and ycfg.get("check_creator_comments", True):
                 try:
-                    cm = yt_get("commentThreads", {"part": "snippet", "videoId": v["id"], "maxResults": 20,
-                                                   "order": "relevance", "textFormat": "plainText"}, key)
                     quota += 1
-                    for c in cm.get("items", []):
-                        top = ((c.get("snippet") or {}).get("topLevelComment") or {}).get("snippet") or {}
-                        if (top.get("authorChannelId") or {}).get("value") == sn.get("channelId"):
-                            extra += LINK_RE.findall(top.get("textDisplay", "") + " " + top.get("textOriginal", ""))
+                    extra = _creator_comment_links(v["id"], sn.get("channelId"), key)
                 except Exception:
                     pass                      # commenti disattivati
             rec = _video_record(v["id"], sn, extra)
@@ -911,9 +946,32 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
     # 3) creator di basi: leggi tutto il loro archivio di video (1 unità ogni 50 video)
     min_hits = int(ycfg.get("creator_min_videos", 2))
     crawl_pages = int(ycfg.get("creator_pages_per_run", 120))
+    check_cm = ycfg.get("check_creator_comments", True)
     used_pages = 0
-    for cid, c in sorted(creators.items(), key=lambda kv: -kv[1].get("hits", 0)):
-        if c.get("hits", 0) < min_hits or not cid.startswith("UC"):
+
+    def take(vid, sn, cid, c):
+        """Un video dall'archivio di un canale: salvalo se ha link TH19 (anche nei commenti del creator)."""
+        nonlocal quota, added
+        sn = dict(sn); sn.setdefault("channelId", cid)
+        extra = []
+        text = sn.get("title", "") + " " + sn.get("description", "")
+        if check_cm and not LINK_RE.search(text) and TH19_TITLE_RE.search(sn.get("title", "")) and quota + 1 <= budget:
+            try:
+                quota += 1
+                extra = _creator_comment_links(vid, cid, key)
+            except Exception:
+                pass
+        if _accept(cat, vid, _video_record(vid, sn, extra), th_ok):
+            added += 1
+            c["hits"] = c.get("hits", 0) + 1
+            if not c.get("name"):
+                c["name"] = sn.get("channelTitle") or None
+        else:
+            seen.setdefault(vid, "skip")
+
+    # a rotazione: prima i canali controllati da più tempo (i nuovi per primi)
+    for cid, c in sorted(creators.items(), key=lambda kv: (kv[1].get("checked", 0), -kv[1].get("hits", 0))):
+        if c.get("hits", 0) < min_hits or not cid.startswith("UC") or not do_creators:
             continue
         if stop or used_pages >= crawl_pages or quota + 1 > budget:
             break
@@ -937,11 +995,7 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
                 if not vid or vid in seen:
                     continue
                 fresh += 1
-                sn = dict(sn); sn.setdefault("channelId", cid)
-                if _accept(cat, vid, _video_record(vid, sn), th_ok):
-                    added += 1
-                else:
-                    seen.setdefault(vid, "skip")
+                take(vid, sn, cid, c)
             token = data.get("nextPageToken")
             if c.get("done") and fresh == 0:                # già letto tutto: basta la prima pagina
                 break
@@ -952,6 +1006,49 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
                 c["next"] = token                            # si riprende al giro successivo
                 break
         c["name"] = c.get("name") or cid
+        c["checked"] = now
+
+    # 3b) nuovi creator: i canali "in evidenza" dei creator già seguiti (spesso altri base builder)
+    found_c = 0
+    if ycfg.get("discover_featured", True) and do_creators:
+        for cid, c in list(creators.items()):
+            if c.get("hits", 0) < min_hits or not cid.startswith("UC") or c.get("fc"):
+                continue
+            if quota + 1 > budget:
+                break
+            c["fc"] = True
+            try:
+                quota += 1
+                data = yt_get("channelSections", {"part": "contentDetails", "channelId": cid}, key)
+            except Exception:
+                continue
+            for sec in data.get("items", []):
+                for ch in ((sec.get("contentDetails") or {}).get("channels") or []):
+                    if isinstance(ch, str) and ch.startswith("UC") and ch not in creators:
+                        creators[ch] = {"name": None, "hits": 0, "cand": True, "via": cid}
+                        found_c += 1
+        # prova i candidati: basta la prima pagina dei loro video per capire se pubblicano basi TH19
+        probes = 0
+        for cid, c in list(creators.items()):
+            if not c.get("cand") or c.get("probed"):
+                continue
+            if probes >= int(ycfg.get("candidate_probes_per_run", 200)) or quota + 1 > budget:
+                break
+            c["probed"] = True
+            try:
+                quota += 1; probes += 1
+                data = yt_get("playlistItems", {"part": "snippet", "playlistId": "UU" + cid[2:], "maxResults": 50}, key)
+            except Exception:
+                continue
+            for it in data.get("items", []):
+                sn = it.get("snippet") or {}
+                vid = (sn.get("resourceId") or {}).get("videoId")
+                if vid and vid not in seen:
+                    take(vid, sn, cid, c)
+            if data.get("nextPageToken"):
+                c["next"] = data["nextPageToken"]            # il resto dell'archivio al giro dopo
+            else:
+                c["done"] = True
 
     # 4) durata dei video con più basi (serve per abbinare i fotogrammi ai link)
     need = [v for v, it in items.items() if len(it["links"]) > 1 and "dur" not in it]
@@ -964,11 +1061,17 @@ def youtube_collect(ycfg: dict, cat: Catalog, key: str):
         for v in data.get("items", []):
             items[v["id"]]["dur"] = iso_duration_seconds((v.get("contentDetails") or {}).get("duration"))
 
-    cat.data["last_run"] = now
+    if do_search:
+        cat.data["last_run"] = now
+    if do_creators:
+        cat.data["last_creators"] = now
+    qd["used"] = int(qd.get("used", 0)) + quota
     cat.changed = True
     n_creators = sum(1 for c in creators.values() if c.get("hits", 0) >= min_hits)
-    log(f"▶️  YouTube: {len(new_ids)} video esaminati dalle ricerche, {added} con link TH19 aggiunti, "
-        f"{n_creators} creator seguiti (quota usata ≈ {quota} unità)")
+    what = "ricerche + creator" if do_search else "solo creator"
+    log(f"▶️  YouTube ({what}): {len(new_ids)} video dalle ricerche, {added} con link TH19 aggiunti, "
+        f"{n_creators} creator seguiti" + (f", {found_c} canali nuovi da provare" if found_c else "") +
+        f" (quota ≈ {quota} unità, oggi {qd['used']})")
     return added
 
 
@@ -1054,7 +1157,288 @@ def index_youtube(idx: Index, cat: Catalog, deadline, th_ok=("TH19",)):
                 idx.save()
     return added
 
+# ═════════════════════════════ Telegram ═════════════════════════════
+# I canali Telegram PUBBLICI hanno una versione web (t.me/s/<canale>) leggibile
+# senza login: il bot legge tutti i post (foto + link della base) e li aggiunge
+# all'archivio. Nessuna chiave necessaria.
+
+TG_UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+         "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
+TG_POST_RE = re.compile(r'data-post="([A-Za-z0-9_]+)/(\d+)"')
+TG_TAG_RE = re.compile(r"<(?:a|i|div)\s[^>]*>", re.I)
+TG_BG_RE = re.compile(r"background-image:\s*url\(\s*['\"]?([^'\")]+)['\"]?\s*\)")
+TG_HREF_RE = re.compile(r'href="([^"]+)"')
+TG_TIME_RE = re.compile(r'<time[^>]*datetime="([^"]+)"')
+
+
+def tg_get(url, retries=2):
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": TG_UA, "Accept-Language": "en"})
+            with urllib.request.urlopen(req, timeout=40) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code == 429 or attempt == retries - 1:
+                raise
+            time.sleep(3)
+        except Exception:
+            if attempt == retries - 1:
+                raise
+            time.sleep(3)
+
+
+def tg_channel_name(s):
+    s = str(s).strip()
+    m = re.search(r"(?:t\.me|telegram\.me)/(?:s/)?([A-Za-z0-9_]{4,})", s)
+    if m:
+        return m.group(1)
+    s = s.lstrip("@")
+    return s if re.fullmatch(r"[A-Za-z0-9_]{4,}", s) else None
+
+
+def tg_parse(page):
+    """Post di una pagina web di Telegram (t.me/s/... o un singolo post ?embed=1):
+    numero del post, foto (in ordine), link delle basi, data."""
+    if isinstance(page, bytes):
+        page = page.decode("utf-8", "replace")
+    posts = []
+    starts = [m for m in TG_POST_RE.finditer(page)]
+    for i, m in enumerate(starts):
+        block = page[m.start(): starts[i + 1].start() if i + 1 < len(starts) else len(page)]
+        head = page[page.rfind("<", 0, m.start()): m.start()]        # il tag del messaggio stesso
+        if "service_message" in head:
+            continue
+        photos = []
+        for tag in TG_TAG_RE.findall(block):
+            video = "message_video_thumb" in tag
+            if "message_photo_wrap" not in tag and not video:
+                continue
+            if "link_preview" in tag:
+                continue
+            bg = TG_BG_RE.search(tag)
+            if not bg:
+                continue
+            href = TG_HREF_RE.search(tag)
+            pid = re.search(r"/(\d+)(?:\?|$)", href.group(1)) if href else None
+            photos.append([int(pid.group(1)) if pid else int(m.group(2)), html.unescape(bg.group(1)), video])
+        text = html.unescape(block)
+        links, have = [], set()
+        for l in LINK_RE.findall(text):
+            l = l.rstrip(".,;:!*_~|")
+            lid = layout_id(l) or l
+            if lid not in have:
+                have.add(lid); links.append(l)
+        t = TG_TIME_RE.search(block)
+        try:
+            ts = datetime.fromisoformat(t.group(1)).timestamp() if t else time.time()
+        except ValueError:
+            ts = time.time()
+        posts.append({"chan": m.group(1), "id": int(m.group(2)), "photos": photos, "links": links, "ts": ts})
+    return posts
+
+
+def tg_post_photos(chan, post):
+    """Indirizzi aggiornati delle foto di un post (quelli vecchi scadono dopo un po')."""
+    try:
+        for p in tg_parse(tg_get(f"https://t.me/{chan}/{post}?embed=1&mode=tme")):
+            if p["id"] == int(post) and p["photos"]:
+                return p["photos"]
+    except Exception:
+        pass
+    return None
+
+
+def telegram_collect(tcfg: dict, cat: Catalog, th_ok=("TH19",)):
+    """Legge i canali Telegram pubblici: al primo avvio tutto lo storico, poi solo i post nuovi.
+    Tiene solo i post con almeno un link dei municipi scelti (gli altri vengono ignorati)."""
+    if not tcfg or not tcfg.get("enabled", True):
+        return
+    chans = [c for c in (tg_channel_name(x) for x in tcfg.get("channels", [])) if c]
+    if not chans:
+        return
+    states, items = cat.data.setdefault("tg", {}), cat.data.setdefault("tg_items", {})
+    every = float(tcfg.get("every_hours", 3)) * 3600
+    max_pages = int(tcfg.get("max_pages_per_run", 150))
+    t_end = time.time() + float(tcfg.get("max_minutes", 10)) * 60    # tempo massimo per tutti i canali
+    th_ok = {t.upper() for t in th_ok}
+    for chan in chans:
+        cl = chan.lower()
+        st = states.setdefault(cl, {"newest": 0, "oldest": None, "done": False, "last_run": None})
+        if st["last_run"] and time.time() - st["last_run"] < every - 300 and st["done"]:
+            continue
+        got, pages, blocked = {}, 0, None
+
+        def walk(before, stop_at):
+            """Pagine all'indietro da 'before'. Ritorna (id più basso visto, storico finito?)."""
+            nonlocal pages, blocked
+            low = None
+            while pages < max_pages and time.time() < t_end:
+                url = f"https://t.me/s/{chan}" + (f"?before={before}" if before else "")
+                try:
+                    posts = [p for p in tg_parse(tg_get(url)) if p["chan"].lower() == cl]
+                except Exception as e:
+                    blocked = str(e)
+                    return low, False
+                pages += 1
+                if not posts:
+                    return low, True
+                for p in posts:
+                    got[p["id"]] = p
+                lo = min(p["id"] for p in posts)
+                if (before is not None and lo >= before) or lo <= 1:
+                    return min(lo, low or lo), True
+                low = lo if low is None else min(low, lo)
+                if lo <= stop_at:
+                    return low, False
+                before = lo
+                time.sleep(0.8)
+            return low, False
+
+        # 1) i post nuovi (fino a quelli già letti)
+        low, end = walk(None, st["newest"])
+        if st["newest"] == 0:                       # primo avvio: questo giro è anche lo storico
+            st["oldest"], st["done"] = low, end
+        elif end:
+            st["done"] = True
+        # 2) lo storico non ancora letto (se il primo avvio non è bastato)
+        if not st["done"] and st["oldest"] and not blocked and pages < max_pages:
+            low2, end2 = walk(st["oldest"], 0)
+            if low2:
+                st["oldest"] = min(st["oldest"], low2)
+            st["done"] = end2
+        if got:
+            st["newest"] = max(st["newest"], max(got))
+        if not blocked:
+            st["last_run"] = time.time()
+        # foto + link nello stesso post, oppure foto e subito dopo un post con il link
+        n_new = n_link_only = n_other = 0
+        pending = None
+        for pid in sorted(got):
+            p = got[pid]
+            photos, links, src = p["photos"], p["links"], p
+            if photos and not links:
+                pending = p
+                continue
+            if links and not photos:
+                last_photo = max([pending["id"]] + [ph[0] for ph in pending["photos"]]) if pending else 0
+                if pending and p["id"] - last_photo <= 3 and abs(p["ts"] - pending["ts"]) < 3600:
+                    photos, src = pending["photos"], pending
+                else:
+                    n_link_only += 1
+            pending = None
+            if not photos or not links:
+                continue
+            if th_ok and not any(th_of(l) in th_ok for l in links):
+                n_other += 1                              # base di un altro municipio
+                continue
+            key = f"{cl}-{src['id']}"
+            if key not in items:
+                items[key] = {"chan": chan, "post": src["id"], "photos": photos, "links": links, "ts": src["ts"]}
+                n_new += 1
+        if got or n_new:
+            cat.changed = True
+        log(f"✈️  Telegram {chan}: {len(got)} post letti in {pages} pagine, +{n_new} con foto e link"
+            + (f", {n_other} di altri municipi ignorati" if n_other else "")
+            + (f", {n_link_only} con il link ma senza foto" if n_link_only else "")
+            + ("" if st["done"] else " (storico non ancora finito: continuo al prossimo giro)")
+            + (f" ⚠️ interrotto: {blocked}" if blocked else ""))
+
+
+def _tg_refresh(cat, chan, post, done):
+    """Rinnova in un colpo solo gli indirizzi delle foto di ~20 post (quelli vecchi scadono).
+    Ritorna False se Telegram non risponde."""
+    cl = chan.lower()
+    if (cl, post) in done:
+        return done[(cl, post)]
+    try:
+        posts = tg_parse(tg_get(f"https://t.me/s/{chan}?before={post + 1}"))
+    except Exception as e:
+        log(f"⚠️  Telegram non risponde ({e}): continuo con le sue immagini al prossimo giro")
+        done[(cl, post)] = False
+        return False
+    items = cat.data.get("tg_items", {})
+    for p in posts:
+        done[(cl, p["id"])] = True
+        it = items.get(f"{cl}-{p['id']}")
+        if it and p["photos"] and len(p["photos"]) == len(it["photos"]) and p["photos"] != it["photos"]:
+            it["photos"] = p["photos"]
+            cat.changed = True
+    done.setdefault((cl, post), True)
+    time.sleep(0.5)
+    return True
+
+
+def index_telegram(idx: Index, cat: Catalog, deadline, th_ok=("TH19",)):
+    added = 0
+    th_ok = {t.upper() for t in th_ok}
+    failed = idx.meta.setdefault("failed", {})
+    refreshed = {}
+
+    def fetch(url):
+        try:
+            return decode_image(tg_get(url, retries=1)), True
+        except Exception:
+            return None, False                       # non scaricata (indirizzo scaduto o rete)
+
+    for key, it in cat.data.get("tg_items", {}).items():
+        links = it["links"]
+        ok_links = [l for l in links if not th_ok or th_of(l) in th_ok]
+        if not ok_links:
+            continue
+        jump = f"https://t.me/{it['chan']}/{it['post']}"
+        for n in range(len(it["photos"])):
+            photos = it["photos"]
+            if len(links) == 1:
+                link, all_links, guess, only = links[0], None, False, False
+            elif len(photos) == len(links):           # album: foto e link nello stesso ordine
+                link, all_links, guess, only = links[n], ok_links, True, False
+            else:                                     # una foto, più link: non si sa quale sia
+                link, all_links, guess, only = None, ok_links, False, True
+            if link is not None and link not in ok_links:
+                continue
+            ekey = f"tg_{key}-{n}"
+            if ekey in idx.meta["entries"] or ekey in failed:
+                continue
+            if time.time() > deadline:
+                log("⏱️  Tempo quasi finito: continuo con le immagini di Telegram al prossimo giro")
+                return added
+            used = photos[n][1]
+            img, got = fetch(used)
+            if not got:
+                if not _tg_refresh(cat, it["chan"], it["post"], refreshed):
+                    return added                       # Telegram non risponde: niente scarti, si riprova dopo
+                if it["photos"][n][1] != used:
+                    used = it["photos"][n][1]
+                    img, got = fetch(used)
+            # negli album e nei video conta solo ciò che mostra davvero un villaggio
+            need_area = len(photos) > 1 or len(links) > 1 or photos[n][2]
+            if img is None or (need_area and play_area_box(img) is None) or not idx.add(
+                    ekey, img, link or all_links[0], jump, it["ts"], img_url=used):
+                failed[ekey] = 1
+                idx.changed = True
+                continue
+            e = idx.meta["entries"][ekey]
+            e["tg"] = [it["chan"], it["post"], n]
+            if all_links and len(all_links) > 1:
+                e["links"] = all_links
+                e["guess"] = bool(guess)
+                if only:
+                    e["video_only"] = True
+            added += 1
+            if added % 25 == 0:
+                idx.save()
+    return added
+
 # ═════════════════════════════ Ricerca ═════════════════════════════
+
+def source_of(key):
+    """Video o post da cui viene un'immagine dell'archivio (più immagini possono venire dallo stesso)."""
+    if key.startswith("yt_"):
+        return "yt:" + key[3:14]                   # gli ID dei video YouTube sono lunghi 11 caratteri
+    if key.startswith("tg_"):
+        return "tg:" + key[3:].rsplit("-", 1)[0]
+    return key
+
 
 def entry_image(key, e):
     if e.get("img"):
@@ -1130,25 +1514,24 @@ def search(idx: Index, qf, th=None, top=3):
     for key in keys:
         e = idx.meta["entries"][key]
         sc, how = all_scores[key]
-        group = ("video:" + key.split("_")[1]) if e.get("video_only") else e["link"]
+        # stessa base = stesso ID nel link (anche se cambia la lingua: /it?, /en?...)
+        group = ("src:" + source_of(key)) if e.get("video_only") else (layout_id(e["link"]) or e["link"])
         cur = best_by_link.get(group)
         if cur is None or sc > cur[0]:
             best_by_link[group] = (sc, how, e, key)
     ranked = sorted(best_by_link.values(), key=lambda x: -x[0])
 
-    def video_of(key):
-        return key.split("_")[1] if key.startswith("yt_") else key
-
     results = []
     for k, (sc, how, e, key) in enumerate(ranked[:top]):
         # le altre immagini dello STESSO video (miniatura, altri fotogrammi) non sono concorrenti
-        same = video_of(key)
-        scores = [r[0] for i, r in enumerate(ranked) if i == k or video_of(r[3]) != same]
+        same = source_of(key)
+        scores = [r[0] for i, r in enumerate(ranked) if i == k or source_of(r[3]) != same]
         kk = scores.index(sc) if sc in scores else 0
         results.append({"score": sc, "pct": match_percent(scores, kk), "how": how,
                         "link": e["link"], "th": e.get("th"), "jump": e["jump"], "img": entry_image(key, e),
                         "key": key, "img_exact": bool(e.get("img")), "area": e.get("area"),
-                        "links": e.get("links"), "guess": e.get("guess", False), "video_only": e.get("video_only", False)})
+                        "links": e.get("links"), "guess": e.get("guess", False), "video_only": e.get("video_only", False),
+                        "tg": e.get("tg")})
     if results:                       # immagine pulita della base trovata (solo per la prima)
         results[0]["crop"] = card_image(qf, feats_all.get(results[0]["key"]), results[0])
     return results, len(feats_all)
@@ -1181,7 +1564,15 @@ def card_image(qf, bf, r):
     try:
         img = decode_image(download(r["img"]))
     except Exception:
-        return None
+        img = None
+    if img is None and r.get("tg"):                  # indirizzo Telegram scaduto: ne chiedo uno nuovo
+        fresh = tg_post_photos(r["tg"][0], r["tg"][1])
+        if fresh and len(fresh) > r["tg"][2]:
+            r["img"] = fresh[r["tg"][2]][1]
+            try:
+                img = decode_image(tg_get(r["img"], retries=1))
+            except Exception:
+                img = None
     if img is None:
         return None
     try:
@@ -1210,18 +1601,20 @@ def build_reply(per_image, n_archive, cfg):
             continue
         r = results[0]
         kind = {"A": "same orientation", "M": "mirrored"}.get(r["how"], "rotated/mirrored")
-        src = "▶️ Source video" if "youtube.com" in r["jump"] else "💬 Original post"
+        yt = "youtube.com" in r["jump"]
+        what = "video" if yt else "post"
+        src = "▶️ Source video" if yt else "✈️ Telegram post" if "t.me/" in r["jump"] else "💬 Original post"
         desc = f"**[📋 Copy base in game]({r['link']})**\n[{src}]({r['jump']}) · {kind}"
         many = [l for l in (r.get("links") or []) if l]
         if r.get("video_only") and len(many) > 1:
             # miniatura di un video con più basi: non si sa quale sia, mostra tutti i link
-            desc = (f"This video shows **{len(many)} bases** and the picture matches one of them:\n"
+            desc = (f"This {what} shows **{len(many)} bases** and the picture matches one of them:\n"
                     + " · ".join(f"[Base {i}]({l})" for i, l in enumerate(many[:12], 1))
                     + f"\n[{src}]({r['jump']}) · {kind}")
         elif len(many) > 1:
             others = [l for l in many if l != r["link"]][:10]
-            note = " (guessed from the order of the video)" if r.get("guess") else ""
-            desc += (f"\nThis video has {len(many)} bases{note}. Not this one? "
+            note = f" (guessed from the order of the {what})" if r.get("guess") else ""
+            desc += (f"\nThis {what} has {len(many)} bases{note}. Not this one? "
                      + " · ".join(f"[{i}]({l})" for i, l in enumerate(others, 2)))
         if alt and len(results) > 1:
             desc += "\n\nOther candidates: " + " · ".join(
@@ -1449,14 +1842,24 @@ def main():
     ykey = os.environ.get("YOUTUBE_API_KEY_BASI", "").strip() or os.environ.get("YOUTUBE_API_KEY", "").strip()
     youtube_collect(ycfg, cat, ykey)
     cat.save()
+    tcfg = full_cfg.get("telegram", {})
+    try:
+        telegram_collect(tcfg, cat, tcfg.get("town_halls", ycfg.get("town_halls", ["TH19"])))
+    except Exception as e:
+        log(f"⚠️  Telegram non letto: {e}")
+    cat.save()
     for key, e in idx.meta["entries"].items():
         if key.startswith("yt_") and not e.get("img") and key[3:] in cat.data["items"]:
             e["img"] = cat.data["items"][key[3:]]["thumb"]
             idx.changed = True
-    added += index_youtube(idx, cat, idx_deadline, ycfg.get("town_halls", ["TH19"]))
+    th_ok = ycfg.get("town_halls", ["TH19"])
+    added += index_telegram(idx, cat, idx_deadline, tcfg.get("town_halls", th_ok))
+    added += index_youtube(idx, cat, idx_deadline, th_ok)
+    cat.save()
     idx.save()
     n_yt = sum(1 for k in idx.meta["entries"] if k.startswith("yt_"))
-    log(f"📚 Archivio: {len(idx.meta['entries'])} basi ({n_yt} da YouTube, +{added} nuove)")
+    n_tg = sum(1 for k in idx.meta["entries"] if k.startswith("tg_"))
+    log(f"📚 Archivio: {len(idx.meta['entries'])} basi ({n_yt} da YouTube, {n_tg} da Telegram, +{added} nuove)")
     n = answer_queries(idx, token, searchc, cfg, deadline)
     idx.save()
     log(f"Fatto: {n} richieste risposte in {time.time() - t0:.0f}s")
