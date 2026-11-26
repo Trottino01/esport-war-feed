@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import tempfile
 import os
 import re
 import sys
@@ -1528,62 +1529,215 @@ def x_fetch(tid):
     raise XError("X isn't answering right now, try again in a few minutes")
 
 
+def _cap(t):
+    return t[:1].upper() + t[1:]
+
+
+def x_check(tid, extra_links=(), th_ok=("TH19",)):
+    """Legge un post di X e controlla che abbia foto e link TH19.
+    Ritorna {"item": dati da salvare o None, "msg": avviso, "who": autore, "url": link del post}."""
+    th_ok = {t.upper() for t in th_ok}
+    try:
+        post = x_fetch(tid)
+    except Exception as e:
+        return {"item": None, "msg": f"⚠️ Couldn't read that X post ({e})."}
+    who = f"@{post['author']}'s post" if post["author"] != "i" else "the post"
+    url = f"https://x.com/{post['author']}/status/{tid}"
+    ref = f"[{_cap(who)}](<{url}>)"
+    links = post["links"] or list(extra_links)
+    if not post["photos"]:
+        return {"item": None, "msg": f"⚠️ {ref} has no pictures, so there's nothing to match."}
+    if not links:
+        return {"item": None, "msg": f"⚠️ {ref} has {len(post['photos'])} picture(s) but no base link. "
+                                     "If the link is in a reply, add it next to the X link."}
+    if not any(th_of(l) in th_ok for l in links):
+        ths = sorted({th_of(l) or "?" for l in links})
+        return {"item": None, "msg": f"⚠️ {ref} has no TH19 base (found: {', '.join(ths)})."}
+    item = {"chan": post["author"], "post": str(tid), "url": url, "ts": post["ts"], "links": links,
+            "photos": [[n, u, False] for n, u in enumerate(post["photos"])]}
+    return {"item": item, "msg": "", "who": who, "url": url}
+
+
+def x_added_text(chk, n, report=()):
+    it, who, url = chk["item"], chk["who"], chk["url"]
+    why = {"download": "couldn't download it", "no_village": "it doesn't look like a village"}
+    skipped = [f"picture {k + 1} ({'its link is ' + st[3:] if st.startswith('th:') else why.get(st, st)})"
+               for k, st in sorted(report) if st != "ok"]
+    if n == 0:
+        return (f"⚠️ Couldn't use the pictures of [{who}](<{url}>)"
+                + (": " + ", ".join(skipped) if skipped else "") + ".")
+    note = (" Skipped: " + ", ".join(skipped) + ".") if skipped else ""
+    if len(it["photos"]) > 1 and len(it["links"]) > 1:
+        note = (" Pictures and links were matched in order." if len(it["photos"]) == len(it["links"])
+                else " It shows several bases, so a match will list all its links.") + note
+    return f"✅ Added **{n} TH19 base{'s' if n != 1 else ''}** from [{who}](<{url}>).{note}"
+
+
 def x_add_from_message(m, idx: Index, cat: Catalog, th_ok=("TH19",)):
     """Messaggio con uno o più link di X: aggiunge le basi di quei post. Ritorna il testo di risposta."""
-    th_ok = {t.upper() for t in th_ok}
     ids = list(dict.fromkeys(X_STATUS_RE.findall(m.get("content", ""))))[:5]
     extra = _links_in([m.get("content", "")])          # link della base scritti nel messaggio
     items = cat.data.setdefault("x_items", {})
     lines, total = [], 0
     for tid in ids:
-        try:
-            post = x_fetch(tid)
-        except Exception as e:
-            lines.append(f"⚠️ Couldn't read that X post ({e}).")
-            continue
-        who = f"@{post['author']}'s post" if post["author"] != "i" else "the post"
-        links = post["links"] or (extra if len(ids) == 1 else [])
-        if not post["photos"]:
-            lines.append(f"⚠️ {who[0].upper() + who[1:]} has no pictures, so there's nothing to match.")
-            continue
-        if not links:
-            lines.append(f"⚠️ {who[0].upper() + who[1:]} has {len(post['photos'])} picture(s) but no base link. "
-                         "If the link is in a reply, paste it in your message next to the X link.")
-            continue
-        ok = [l for l in links if th_of(l) in th_ok]
-        if not ok:
-            ths = sorted({th_of(l) or "?" for l in links})
-            lines.append(f"⚠️ {who[0].upper() + who[1:]} has no TH19 base (found: {', '.join(ths)}).")
-            continue
-        url = f"https://x.com/{post['author']}/status/{tid}"
         if tid in items and any(k.startswith(f"x_{tid}-") for k in idx.meta["entries"]):
-            lines.append(f"ℹ️ [{who}]({url}) is already in the archive.")
+            lines.append(f"ℹ️ [That post](<{items[tid]['url']}>) is already in the archive.")
             continue
-        items[tid] = {"chan": post["author"], "post": tid, "url": url, "ts": post["ts"], "links": links,
-                      "photos": [[n, u, False] for n, u in enumerate(post["photos"])]}
+        chk = x_check(tid, extra if len(ids) == 1 else [], th_ok)
+        if chk["item"] is None:
+            lines.append(chk["msg"])
+            continue
+        items[tid] = chk["item"]
         cat.changed = True
         for k in [k for k in idx.meta.get("failed", {}) if k.startswith(f"x_{tid}-")]:
             del idx.meta["failed"][k]                   # nuovo tentativo (es. link aggiunto dopo)
-        n = index_posts(idx, cat, "x", time.time() + 120, th_ok, only={tid})
+        rep_ = []
+        n = index_posts(idx, cat, "x", time.time() + 120, th_ok, only={tid}, report=rep_)
         total += n
-        if n == 0:
-            lines.append(f"⚠️ Couldn't use the pictures of [{who}]({url}) (they don't show a village).")
-            continue
-        note = ""
-        if len(post["photos"]) > 1 and len(links) > 1:
-            note = (" Pictures and links were matched in order." if len(post["photos"]) == len(links)
-                    else " It shows several bases, so a match will list all its links.")
-        lines.append(f"✅ Added **{n} TH19 base{'s' if n != 1 else ''}** from [{who}]({url}).{note}")
+        lines.append(x_added_text(chk, n, rep_))
     if total:
         lines.append(f"Archive: {len(idx.meta['entries'])} TH19 bases")
     return "\n".join(lines)[:1990] or "⚠️ I couldn't find an X post link in your message.", total
+
+
+# ═════════════════════════════ /addbase ═════════════════════════════
+# Le basi aggiunte con il comando /addbase (link di un post di X, oppure screenshot + link)
+# vengono salvate NEL REPOSITORY (added_bases.json e cartella added_bases/): così sono
+# subito cercabili e nessun giro del bot può perderle.
+
+ADDED_FILE = BASE_DIR / "added_bases.json"
+ADDED_DIR = BASE_DIR / "added_bases"
+
+
+class MemCatalog:
+    """Catalogo solo in memoria (per indicizzare al volo le basi aggiunte)."""
+    def __init__(self, data):
+        self.data, self.changed = data, False
+
+
+def load_added():
+    try:
+        d = json.loads(ADDED_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        d = {}
+    d.setdefault("x", {})
+    d.setdefault("manual", {})
+    return d
+
+
+def save_added(d):
+    ADDED_FILE.write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def sync_added(cat):
+    """Copia nel catalogo le basi aggiunte con /addbase."""
+    d = load_added()
+    for src, name in (("x", "x"), ("manual", "m")):
+        items = cat.data.setdefault(f"{name}_items", {})
+        for k, it in d[src].items():
+            if k not in items:
+                items[k] = it
+                cat.changed = True
+    return d
+
+
+def index_added(idx: Index, deadline, th_ok=("TH19",)):
+    """Rende cercabili subito le basi aggiunte con /addbase (anche se il giro normale non è ancora passato)."""
+    mem = MemCatalog({})
+    sync_added(mem)
+    return (index_posts(idx, mem, "x", deadline, th_ok) + index_posts(idx, mem, "m", deadline, th_ok))
+
+
+def run_add(ycfg):
+    """Comando /addbase (avviato dal Worker): prepara l'aggiunta. La risposta parte con --add-reply,
+    dopo che il workflow ha salvato i file nel repository."""
+    th_ok = {t.upper() for t in ycfg.get("town_halls", ["TH19"])}
+    post = os.environ.get("ADD_POST", "").strip()
+    link_in = os.environ.get("ADD_LINK", "").strip()
+    image = os.environ.get("ADD_IMAGE", "").strip()
+    added = load_added()
+    lines, ok_any = [], False
+    tids = list(dict.fromkeys(X_STATUS_RE.findall(post)))[:5]
+    given = _links_in([link_in, post])
+    try:
+        if tids:
+            for tid in tids:
+                if tid in added["x"]:
+                    lines.append(f"ℹ️ [That post](<{added['x'][tid]['url']}>) is already in the archive.")
+                    continue
+                chk = x_check(tid, given if len(tids) == 1 else [], th_ok)
+                if chk["item"] is None:
+                    lines.append(chk["msg"])
+                    continue
+                tmp_idx = Index(Path(tempfile.mkdtemp()))          # prova: quante foto sono basi vere
+                rep_ = []
+                n = index_posts(tmp_idx, MemCatalog({"x_items": {tid: chk["item"]}}), "x",
+                                time.time() + 180, th_ok, report=rep_)
+                lines.append(x_added_text(chk, n, rep_))
+                if n:
+                    added["x"][tid] = chk["item"]
+                    ok_any = True
+        elif image:
+            if not given:
+                lines.append("⚠️ Add the base link too: `/addbase screenshot:… link:https://link.clashofclans.com/…`")
+            elif th_of(given[0]) not in th_ok:
+                lines.append(f"⚠️ That link is for {th_of(given[0]) or 'another Town Hall'}: "
+                             "the archive only keeps TH19 bases.")
+            elif any(layout_id(given[0]) in {layout_id(l) for l in it["links"]} for it in added["manual"].values()):
+                lines.append("ℹ️ That base is already in the archive.")
+            else:
+                try:
+                    img = decode_image(download(image))
+                except Exception:
+                    img = None
+                if img is None:
+                    lines.append("⚠️ I couldn't open that picture. Try a normal PNG or JPG screenshot.")
+                else:
+                    h, w = img.shape[:2]
+                    if max(h, w) > 2000:                         # file più leggero, stessa qualità per il confronto
+                        f = 2000 / max(h, w)
+                        img = cv2.resize(img, (round(w * f), round(h * f)), interpolation=cv2.INTER_AREA)
+                    mid = f"m{int(time.time() * 1000)}"
+                    ADDED_DIR.mkdir(exist_ok=True)
+                    cv2.imwrite(str(ADDED_DIR / f"{mid}.jpg"), img, [cv2.IMWRITE_JPEG_QUALITY, 92])
+                    added["manual"][mid] = {"chan": "manual", "post": mid, "url": "", "ts": time.time(),
+                                            "links": [given[0]], "photos": [[0, f"file:added_bases/{mid}.jpg", False]]}
+                    lines.append("✅ Added **1 TH19 base** to the archive"
+                                 + ("" if play_area_box(img) is not None
+                                    else " (tip: a full screenshot of the village works best)") + ".")
+                    ok_any = True
+        else:
+            lines.append("ℹ️ How to use `/addbase`:\n• `post:` the link of an X post with base pictures and links\n"
+                         "• or `screenshot:` a picture of the base + `link:` its base link")
+    except Exception as e:
+        log(f"❌ Errore: {e}")
+        lines.append("⚠️ Something went wrong. Please try again in a minute.")
+    if ok_any:
+        save_added(added)
+        lines.append("You can find it with `/findbase` right away.")
+    (BASE_DIR / "add_reply.json").write_text(json.dumps({"content": "\n".join(lines)[:1990], "ok": ok_any}))
+    log("\n".join(lines))
+    return 0
+
+
+def run_add_reply():
+    app_id = os.environ.get("INTERACTION_APP_ID", "").strip()
+    token = os.environ.get("INTERACTION_TOKEN", "").strip()
+    try:
+        r = json.loads((BASE_DIR / "add_reply.json").read_text())
+    except Exception:
+        r = {"content": "⚠️ Something went wrong. Please try again in a minute.", "ok": False}
+    if r.get("ok") and os.environ.get("SAVE_OK", "success") != "success":
+        r["content"] = "⚠️ I couldn't save the base right now. Please try again in a minute."
+    interaction_reply(app_id, token, r["content"], [])
+    return 0
 
 
 def index_telegram(idx: Index, cat: Catalog, deadline, th_ok=("TH19",)):
     return index_posts(idx, cat, "tg", deadline, th_ok)
 
 
-def index_posts(idx: Index, cat: Catalog, source, deadline, th_ok=("TH19",), only=None):
+def index_posts(idx: Index, cat: Catalog, source, deadline, th_ok=("TH19",), only=None, report=None):
     """Aggiunge all'archivio le foto dei post (Telegram "tg" o X "x") salvati nel catalogo."""
     added = 0
     th_ok = {t.upper() for t in th_ok}
@@ -1593,6 +1747,9 @@ def index_posts(idx: Index, cat: Catalog, source, deadline, th_ok=("TH19",), onl
 
     def fetch(url):
         try:
+            if url.startswith("file:"):                  # immagine salvata nel repository (/addbase)
+                img = cv2.imread(str(BASE_DIR / url[5:]))
+                return (img if img is not None and min(img.shape[:2]) >= 200 else None), True
             return decode_image(get(url, retries=1)), True
         except Exception:
             return None, False                       # non scaricata (indirizzo scaduto o rete)
@@ -1604,7 +1761,7 @@ def index_posts(idx: Index, cat: Catalog, source, deadline, th_ok=("TH19",), onl
         ok_links = [l for l in links if not th_ok or th_of(l) in th_ok]
         if not ok_links:
             continue
-        jump = f"https://t.me/{it['chan']}/{it['post']}" if source == "tg" else it["url"]
+        jump = f"https://t.me/{it['chan']}/{it['post']}" if source == "tg" else it.get("url", "")
         for n in range(len(it["photos"])):
             photos = it["photos"]
             if len(links) == 1:
@@ -1614,6 +1771,8 @@ def index_posts(idx: Index, cat: Catalog, source, deadline, th_ok=("TH19",), onl
             else:                                     # una foto, più link: non si sa quale sia
                 link, all_links, guess, vonly = None, ok_links, False, True
             if link is not None and link not in ok_links:
+                if report is not None:
+                    report.append((n, "th:" + (th_of(link) or "?")))
                 continue
             ekey = f"{source}_{key}-{n}"
             if ekey in idx.meta["entries"] or ekey in failed:
@@ -1629,13 +1788,20 @@ def index_posts(idx: Index, cat: Catalog, source, deadline, th_ok=("TH19",), onl
                 if it["photos"][n][1] != used:
                     used = it["photos"][n][1]
                     img, got = fetch(used)
-            # negli album e nei video conta solo ciò che mostra davvero un villaggio
-            need_area = len(photos) > 1 or len(links) > 1 or photos[n][2]
-            if img is None or (need_area and play_area_box(img) is None) or not idx.add(
-                    ekey, img, link or all_links[0], jump, it["ts"], img_url=used):
+            # una foto per link (o un link per tante basi): sono basi, qualunque sia lo scenario.
+            # Solo le foto IN PIÙ rispetto ai link (statistiche, grafiche...) e i video devono
+            # mostrare un villaggio riconoscibile.
+            need_area = photos[n][2] or len(photos) > len(links)
+            why = ("download" if img is None else
+                   "no_village" if need_area and play_area_box(img) is None else None)
+            if why or not idx.add(ekey, img, link or all_links[0], jump, it["ts"], img_url=used):
                 failed[ekey] = 1
                 idx.changed = True
+                if report is not None:
+                    report.append((n, why or "no_village"))
                 continue
+            if report is not None:
+                report.append((n, "ok"))
             e = idx.meta["entries"][ekey]
             if source == "tg":
                 e["tg"] = [it["chan"], it["post"], n]
@@ -1659,6 +1825,8 @@ def source_of(key):
         return "tg:" + key[3:].rsplit("-", 1)[0]
     if key.startswith("x_"):
         return "x:" + key[2:].rsplit("-", 1)[0]
+    if key.startswith("m_"):
+        return "m:" + key[2:].rsplit("-", 1)[0]
     return key
 
 
@@ -1784,7 +1952,10 @@ def card_image(qf, bf, r):
     if not r.get("img") or bf is None:
         return None
     try:
-        img = decode_image(download(r["img"]))
+        if r["img"].startswith("file:"):
+            img = cv2.imread(str(BASE_DIR / r["img"][5:]))
+        else:
+            img = decode_image(download(r["img"]))
     except Exception:
         img = None
     if img is None and r.get("tg"):                  # indirizzo Telegram scaduto: ne chiedo uno nuovo
@@ -1827,7 +1998,8 @@ def build_reply(per_image, n_archive, cfg):
         what = "video" if yt else "post"
         src = ("▶️ Source video" if yt else "✈️ Telegram post" if "t.me/" in r["jump"]
                else "𝕏 X post" if re.search(r"//(?:x|twitter)\.com/", r["jump"]) else "💬 Original post")
-        desc = f"**[📋 Copy base in game]({r['link']})**\n[{src}]({r['jump']}) · {kind}"
+        desc = (f"**[📋 Copy base in game]({r['link']})**\n"
+                + (f"[{src}]({r['jump']}) · {kind}" if r["jump"] else f"➕ Added with /addbase · {kind}"))
         many = [l for l in (r.get("links") or []) if l]
         if r.get("video_only") and len(many) > 1:
             # miniatura di un video con più basi: non si sa quale sia, mostra tutti i link
@@ -1850,7 +2022,7 @@ def build_reply(per_image, n_archive, cfg):
             name = f"base_{k + 1}.jpg"
             files.append((name, r["crop"]))
             emb["image"] = {"url": f"attachment://{name}"}
-        elif r.get("img"):
+        elif (r.get("img") or "").startswith("http"):
             emb["image"] = {"url": r["img"]}
         embeds.append(emb)
     if embeds:
@@ -1995,6 +2167,12 @@ def run_interaction(idx: Index, cfg):
         if not idx.meta["entries"] or idx.outdated:
             interaction_reply(app_id, token, "⏳ The base archive is being updated. Please try again in a few minutes.", [])
             return 0
+        try:                                          # basi appena aggiunte con /addbase: subito cercabili
+            n_new = index_added(idx, time.time() + 90)
+            if n_new:
+                log(f"➕ {n_new} basi aggiunte con /addbase incluse nella ricerca")
+        except Exception as e:
+            log(f"⚠️  Basi aggiunte non incluse: {e}")
         per_image, n_arch = [], len(idx.meta["entries"])
         for url in urls[:3]:
             try:
@@ -2030,9 +2208,21 @@ def register_commands(token):
          ],
          "integration_types": [0], "contexts": [0]},
         {"name": "Find base link", "type": 3, "integration_types": [0], "contexts": [0]},
+        {"name": "addbase", "type": 1,
+         "description": "Add a base to the archive: an X post link, or a screenshot + base link",
+         "options": [
+             {"type": 3, "name": "post", "description": "Link of an X (Twitter) post with base pictures and links",
+              "required": False},
+             {"type": 3, "name": "link", "description": "Base link (link.clashofclans.com/…)", "required": False},
+             {"type": 11, "name": "screenshot", "description": "Picture of the base (use it together with link)",
+              "required": False},
+         ],
+         "integration_types": [0], "contexts": [0]},
+        {"name": "Add to base archive", "type": 3, "integration_types": [0], "contexts": [0]},
     ]
     dapi("PUT", f"/applications/{app['id']}/commands", token, body=cmds)
-    log(f"✅ Comandi registrati per {app.get('name', app['id'])}: /findbase e 'Find base link'")
+    log(f"✅ Comandi registrati per {app.get('name', app['id'])}: /findbase, /addbase, "
+        "'Find base link' e 'Add to base archive'")
     return 0
 
 
@@ -2045,6 +2235,8 @@ def main():
     ap.add_argument("--image", help="prova locale: confronta un'immagine con l'archivio e stampa i risultati")
     ap.add_argument("--interaction", action="store_true", help="risponde a un comando /findbase (avviato dal Worker)")
     ap.add_argument("--register-commands", action="store_true", help="registra /findbase su Discord (una volta)")
+    ap.add_argument("--add", action="store_true", help="comando /addbase (avviato dal Worker)")
+    ap.add_argument("--add-reply", action="store_true", help="risposta al comando /addbase")
     args = ap.parse_args()
     t0 = time.time()
     deadline = t0 + args.max_minutes * 60
@@ -2054,6 +2246,10 @@ def main():
     ycfg = full_cfg.get("youtube", {})
     if args.register_commands:
         return register_commands(os.environ.get("DISCORD_BOT_TOKEN", "").strip())
+    if args.add:
+        return run_add(ycfg)
+    if args.add_reply:
+        return run_add_reply()
     idx = Index(Path(args.index))
     (idx.root / "CHANGED").unlink(missing_ok=True)
     if args.interaction:
@@ -2090,22 +2286,29 @@ def main():
         telegram_collect(tcfg, cat, tcfg.get("town_halls", ycfg.get("town_halls", ["TH19"])))
     except Exception as e:
         log(f"⚠️  Telegram non letto: {e}")
+    sync_added(cat)                                   # basi aggiunte con /addbase
     cat.save()
     for key, e in idx.meta["entries"].items():
         if key.startswith("yt_") and not e.get("img") and key[3:] in cat.data["items"]:
             e["img"] = cat.data["items"][key[3:]]["thumb"]
             idx.changed = True
     th_ok = ycfg.get("town_halls", ["TH19"])
+    if idx.meta.get("post_rules") != 2:                # regola nuova sugli scenari: riprova le foto scartate
+        for k in [k for k in idx.meta.get("failed", {}) if k.startswith(("tg_", "x_"))]:
+            del idx.meta["failed"][k]
+        idx.meta["post_rules"] = 2
+        idx.changed = True
     added += index_telegram(idx, cat, idx_deadline, tcfg.get("town_halls", th_ok))
-    added += index_posts(idx, cat, "x", idx_deadline, th_ok)          # basi da X (dopo la ricostruzione settimanale)
+    added += index_posts(idx, cat, "x", idx_deadline, th_ok)          # basi da X
+    added += index_posts(idx, cat, "m", idx_deadline, th_ok)          # screenshot + link aggiunti con /addbase
     added += index_youtube(idx, cat, idx_deadline, th_ok)
     cat.save()
     idx.save()
     n_yt = sum(1 for k in idx.meta["entries"] if k.startswith("yt_"))
     n_tg = sum(1 for k in idx.meta["entries"] if k.startswith("tg_"))
-    n_x = sum(1 for k in idx.meta["entries"] if k.startswith("x_"))
+    n_x = sum(1 for k in idx.meta["entries"] if k.startswith(("x_", "m_")))
     log(f"📚 Archivio: {len(idx.meta['entries'])} basi ({n_yt} da YouTube, {n_tg} da Telegram, "
-        f"{n_x} da X, +{added} nuove)")
+        f"{n_x} da X o /addbase, +{added} nuove)")
     n = answer_queries(idx, token, searchc, cfg, deadline, cat, th_ok)
     idx.save()
     cat.save()
