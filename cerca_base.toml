@@ -1,0 +1,42 @@
+# ═══════════════════════════════════════════════════════════════════
+#  Cerca Base — configurazione
+#  ID dei canali: tasto destro sul canale → "Copia ID canale"
+#  (serve la Modalità sviluppatore: Impostazioni → Avanzate).
+# ═══════════════════════════════════════════════════════════════════
+
+[cerca_base]
+# Canali Discord da cui costruire l'archivio: per ora nessuno, si usa solo YouTube.
+# (Se un giorno vuoi aggiungerne uno: archive_channels = ["ID_DEL_CANALE"])
+archive_channels = []
+
+# Canale dove posti lo screenshot da cercare. Il bot risponde al messaggio.
+# Suggerimento: se scrivi "th19" nel messaggio, cerca solo tra le basi TH19 (più veloce e preciso).
+search_channels = [
+  "INCOLLA_QUI_ID_CANALE_CERCA_BASE",
+]
+
+max_results = 3                 # quante basi mostrare
+min_score   = 12                # sotto questo punteggio: "nessuna base abbastanza simile"
+show_nearest_when_none = true   # mostra comunque le più vicine
+
+[youtube]
+# Riempie l'archivio da solo con le basi pubblicate su YouTube: link nella
+# descrizione (o in un commento del creator) + miniatura del video come immagine.
+# Usa la chiave YOUTUBE_API_KEY_BASI (consigliata: un progetto Google separato,
+# così non consuma la quota del bot delle guerre); se manca usa YOUTUBE_API_KEY.
+enabled     = true
+town_halls  = ["TH19"]          # tieni solo i link di questi municipi (es. ["TH19", "TH18"])
+every_hours = 24                # una raccolta al giorno
+pages       = 2                 # pagine di risultati per ricerca, nei giorni normali
+backfill_days  = 365            # al primo avvio: quanto indietro andare
+backfill_pages = 4              # al primo avvio: pagine per ricerca (ordinate per data e per popolarità)
+check_creator_comments = true   # se il link non è in descrizione, guarda i commenti del creator
+# Ogni pagina costa 100 unità (limite gratuito 10.000/giorno per progetto).
+# Primo avvio ≈ 4.000-5.000 unità, poi ≈ 1.000-1.500 al giorno.
+queries = [
+  "th19 base link",
+  "th19 war base link",
+  "town hall 19 base link",
+  "th19 anti 3 star base",
+  "th19 base",
+]
