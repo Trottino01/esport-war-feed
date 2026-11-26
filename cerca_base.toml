@@ -12,7 +12,7 @@ archive_channels = []
 # Canale dove posti lo screenshot da cercare. Il bot risponde al messaggio.
 # Suggerimento: se scrivi "th19" nel messaggio, cerca solo tra le basi TH19 (più veloce e preciso).
 search_channels = [
-  "https://discord.com/channels/1572185473265307790/1575597860077183037",
+  "1575597860077183037",
 ]
 
 max_results = 3                 # quante basi mostrare
