@@ -925,7 +925,7 @@ def build_reply(per_image, n_archive, cfg):
             emb["image"] = {"url": r["img"]}
         embeds.append(emb)
     if embeds:
-        embeds[-1]["footer"] = {"text": f"Archive: {n_archive} bases · add \"th19\" to search only TH19 bases"}
+        embeds[-1]["footer"] = {"text": f"Archive: {n_archive} TH19 bases"}
     return "\n".join(heads)[:1990], embeds, files
 
 
@@ -988,8 +988,7 @@ def answer_queries(idx: Index, token, search_ids, cfg, deadline):
                 dapi("PUT", emoji_path, token)
             except DiscordError:
                 pass
-            thm = re.search(r"\bth\s?(\d{1,2})\b", m.get("content", ""), re.I)
-            th = f"TH{thm.group(1)}" if thm else None
+            th = None                       # l'archivio contiene solo basi TH19
             per_image = []
             n_arch = 0
             for key, url in imgs[:3]:
@@ -1079,7 +1078,6 @@ def register_commands(token):
          "description": "Find the link of a Clash of Clans base from a screenshot",
          "options": [
              {"type": 11, "name": "screenshot", "description": "Screenshot of the base", "required": True},
-             {"type": 3, "name": "townhall", "description": "Only search this Town Hall, e.g. th19", "required": False},
          ],
          "integration_types": [0], "contexts": [0]},
         {"name": "Find base link", "type": 3, "integration_types": [0], "contexts": [0]},
