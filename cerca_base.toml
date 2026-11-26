@@ -21,26 +21,33 @@ show_nearest_when_none = true   # mostra comunque le più vicine
 [youtube]
 # Riempie l'archivio da solo con le basi pubblicate su YouTube:
 #   • ricerche in tante lingue;
-#   • i canali che pubblicano spesso basi con link ("creator") vengono seguiti e
-#     il bot legge TUTTO il loro archivio di video (costa pochissima quota);
+#   • i canali che pubblicano basi con link ("creator") vengono seguiti: il bot legge tutto
+#     il loro archivio e controlla i video nuovi ogni 3 ore (costa pochissima quota);
+#   • scopre nuovi creator dai "canali in evidenza" di quelli già seguiti;
 #   • i video con più basi vengono usati tutti: il bot prende 3 fotogrammi del video
 #     (a 1/4, metà, 3/4) e li abbina ai link grazie ai minuti scritti in descrizione.
 # Usa la chiave YOUTUBE_API_KEY_BASI (progetto Google separato da quello del bot delle guerre).
 enabled     = true
 town_halls  = ["TH19"]          # tieni solo i link di questi municipi
-every_hours = 24                # una raccolta al giorno
+every_hours = 24                # ricerche: una volta al giorno
+creators_every_hours = 3        # video nuovi dei creator seguiti: ogni 3 ore
 pages       = 1                 # pagine di risultati per ricerca, nei giorni normali
 backfill_days  = 365            # al primo avvio: quanto indietro andare
 backfill_pages = 1              # al primo avvio: pagine per ricerca (per data e per popolarità)
 check_creator_comments = true   # se il link non è in descrizione, guarda i commenti del creator
-creator_min_videos    = 2       # un canale diventa "creator" dopo 2 video con link di basi
-creator_pages_per_run = 120     # pagine da 50 video lette ogni giorno dagli archivi dei creator (1 unità l'una)
-max_quota_per_run     = 8000    # tetto di sicurezza (limite gratuito: 10.000 unità al giorno)
-# Ogni ricerca costa 100 unità: 26 ricerche ≈ 2.600 unità al giorno (5.200 il primo giorno).
+creator_min_videos    = 1       # un canale diventa "creator" appena pubblica un video con link TH19
+creator_pages_per_run = 300     # pagine da 50 video lette a ogni giro dagli archivi dei creator (1 unità l'una)
+discover_featured     = true    # cerca nuovi creator tra i "canali in evidenza" dei creator seguiti
+candidate_probes_per_run = 200  # canali nuovi da provare a ogni giro (1 unità l'uno)
+max_quota_per_run     = 8000    # tetto per singolo giro
+daily_quota           = 9500    # tetto giornaliero (limite gratuito: 10.000 unità al giorno)
+# Ogni ricerca costa 100 unità: 32 ricerche ≈ 3.200 unità al giorno. I creator costano ~1 unità l'uno a controllo.
 queries = [
   # inglese
   "th19 base link", "th19 war base link", "town hall 19 base link", "th19 base",
   "th19 anti 3 star base", "th19 legend base link", "th19 cwl base", "th19 esports base",
+  "new th19 base", "th19 base copy link", "th19 anti 2 star base", "th19 hybrid base",
+  "th19 ranked base", "best th19 base",
   # giapponese, coreano, cinese
   "クラクラ th19 配置", "th19 配置 リンク", "th19 배치", "클래시오브클랜 19홀 배치",
   "部落冲突 19本 阵型", "th19 阵型 链接",
@@ -50,3 +57,18 @@ queries = [
   # russo, turco, indonesiano, vietnamita, arabo
   "тх19 база", "th19 köy düzeni", "base th19 terbaik", "base th19 mạnh nhất", "قاعدة تاون هول 19",
 ]
+
+[telegram]
+# Canali Telegram PUBBLICI con foto delle basi + link (basta il nome o il link t.me).
+# Al primo avvio il bot legge tutto lo storico, poi ogni 3 ore solo i post nuovi.
+# Tiene SOLO le basi TH19 (come YouTube): i post con link di altri municipi vengono ignorati.
+# Nessuna chiave necessaria.
+enabled     = true
+channels    = [
+  "ClashOfClansTh19",
+  "CoCTh17layout",
+  "CLASHi",
+]
+every_hours = 3
+max_pages_per_run = 150         # pagine da ~20 post per canale a ogni giro (storico lungo: continua al giro dopo)
+max_minutes = 10                # tempo massimo di lettura di Telegram a ogni giro
