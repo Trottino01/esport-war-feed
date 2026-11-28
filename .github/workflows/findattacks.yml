@@ -1,0 +1,51 @@
+name: Find Attacks (instant)
+run-name: Find attacks request
+
+# Started by the Cloudflare Worker when someone uses /findattacks on Discord
+# (or right-click a message → Apps → Find attacks on this base).
+on:
+  workflow_dispatch:
+    inputs:
+      app_id:
+        description: "Discord application id"
+        required: true
+      token:
+        description: "Discord interaction token"
+        required: true
+      images:
+        description: "Image URLs (JSON list)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  answer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      INTERACTION_APP_ID: ${{ inputs.app_id }}
+      INTERACTION_TOKEN: ${{ inputs.token }}
+      INTERACTION_IMAGES: ${{ inputs.images }}
+    steps:
+      - name: Hide the interaction token
+        run: echo "::add-mask::$INTERACTION_TOKEN"
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install libraries
+        run: pip install --quiet opencv-python-headless numpy
+
+      - name: Restore war-video archive
+        uses: actions/cache/restore@v4
+        with:
+          path: attack_index
+          key: attack-index-v1-none
+          restore-keys: attack-index-v1-
+
+      - name: Search and reply on Discord
+        run: python cerca_attacchi.py --interaction
