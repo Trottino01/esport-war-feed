@@ -1,0 +1,26 @@
+# ═══════════════════════════════════════════════════════════════════
+#  Cerca Attacchi — configurazione
+#  Trova nei video delle guerre i momenti in cui compare una base (/findattacks).
+# ═══════════════════════════════════════════════════════════════════
+
+[attacchi]
+enabled = true
+
+# Analizza i video pubblicati dal bot delle guerre (esports, TH19).
+from_war_feed = true
+
+# Video in più da analizzare (YouTube o VOD di Twitch), uno per riga:
+extra_videos = [
+  # "https://www.youtube.com/watch?v=XXXXXXXXXXX",
+  # "https://www.twitch.tv/videos/1234567890",
+]
+
+step_seconds      = 15     # ogni quanti secondi guardare un fotogramma (più basso = più preciso ma più lento)
+max_video_minutes = 480    # salta i video più lunghi di 8 ore
+keep_days         = 180    # i video più vecchi escono dall'archivio
+
+# Nota su YT_COOKIES (facoltativo).
+# Se nel log compare spesso "YouTube chiede di confermare di non essere un bot",
+# YouTube sta bloccando i server di GitHub. Si può aggiungere il secret
+# YT_COOKIES con i cookie (formato "Netscape") di un account YouTube
+# SECONDARIO, non quello principale: usarlo per un bot può portare a blocchi.
