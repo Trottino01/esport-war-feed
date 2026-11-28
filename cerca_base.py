@@ -138,6 +138,21 @@ def _count_cells(pts, cell=22.0):
     return len({(int(x // cell), int(y // cell)) for x, y in pts})
 
 
+def _spread_ok(P, shrink=0.55, min_inner=0.12):
+    """I punti allineati devono stare anche DENTRO la base, non solo attorno.
+    Le scritte e i pulsanti del gioco (nomi dei giocatori, barra delle truppe, "Mappa di guerra",
+    timer...) stanno sui bordi dello schermo e sono uguali in tutte le repliche: se combaciano
+    solo quelli, è la stessa interfaccia, non la stessa base."""
+    if P is None or len(P) < 12:
+        return True
+    P = np.asarray(P, np.float32)
+    hull = cv2.convexHull(P).reshape(-1, 2)
+    c = P.mean(0)
+    inner = ((hull - c) * shrink + c).astype(np.float32)
+    inside = sum(cv2.pointPolygonTest(inner, (float(x), float(y)), False) >= 0 for x, y in P)
+    return inside / len(P) >= min_inner
+
+
 # ───────── Metodo A ─────────
 def _score_affine(Q, B, rk, s):
     sel = rk < 2
@@ -152,7 +167,10 @@ def _score_affine(Q, B, rk, s):
     if sv[1] < 1e-6 or sv[0] / sv[1] > 1.6:           # deve essere quasi una similitudine
         return 0
     _score_affine.mirrored = bool(np.linalg.det(lin) < 0)
-    _score_affine.pts = B[sel][inl.ravel().astype(bool)]
+    keep = inl.ravel().astype(bool)
+    if not _spread_ok(Q[sel][keep]):                  # combaciano solo scritte e pulsanti sui bordi
+        return 0
+    _score_affine.pts = B[sel][keep]
     return _count_cells(_score_affine.pts)
 
 
@@ -262,7 +280,7 @@ def _score_symmetric(inst, s, max_hyp=400, rng=None, ratios=None):
             if counts[h] <= best:
                 continue
             c = _count_cells(cen[ok[h]])
-            if c > best:
+            if c > best and _spread_ok(cen[ok[h]]):
                 best = c
                 _score_symmetric.pts = cen[ok[h]]
     return best
@@ -2219,10 +2237,17 @@ def register_commands(token):
          ],
          "integration_types": [0], "contexts": [0]},
         {"name": "Add to base archive", "type": 3, "integration_types": [0], "contexts": [0]},
+        {"name": "findattacks", "type": 1,
+         "description": "Find the war videos where this base was attacked",
+         "options": [
+             {"type": 11, "name": "screenshot", "description": "Screenshot of the base", "required": True},
+         ],
+         "integration_types": [0], "contexts": [0]},
+        {"name": "Find attacks on this base", "type": 3, "integration_types": [0], "contexts": [0]},
     ]
     dapi("PUT", f"/applications/{app['id']}/commands", token, body=cmds)
-    log(f"✅ Comandi registrati per {app.get('name', app['id'])}: /findbase, /addbase, "
-        "'Find base link' e 'Add to base archive'")
+    log(f"✅ Comandi registrati per {app.get('name', app['id'])}: /findbase, /addbase, /findattacks, "
+        "'Find base link', 'Add to base archive' e 'Find attacks on this base'")
     return 0
 
 
