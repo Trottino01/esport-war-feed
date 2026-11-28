@@ -1,0 +1,56 @@
+name: War Video Archive
+
+# Every hour: takes the war videos posted by the esports feed (state.json),
+# looks at one frame every few seconds and remembers every base on screen.
+# Used by /findattacks.
+on:
+  schedule:
+    - cron: "41 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: attack-index
+  cancel-in-progress: false
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      # yt-dlp needs a JavaScript runtime (Deno) to read YouTube videos
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install tools
+        run: |
+          pip install --quiet --upgrade opencv-python-headless numpy "yt-dlp[default]"
+          which ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+
+      - name: Restore war-video archive
+        uses: actions/cache/restore@v4
+        with:
+          path: attack_index
+          key: attack-index-v1-${{ github.run_id }}
+          restore-keys: attack-index-v1-
+
+      - name: Analyse new war videos
+        env:
+          YT_COOKIES: ${{ secrets.YT_COOKIES }}
+        run: python cerca_attacchi.py --index --max-minutes 40
+
+      - name: Save war-video archive
+        if: always() && hashFiles('attack_index/CHANGED') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: attack_index
+          key: attack-index-v1-${{ github.run_id }}
