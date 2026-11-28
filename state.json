@@ -2,7 +2,7 @@
  "channel_ids": {},
  "filter_hash": "3a1fc2187366",
  "heartbeat": "2026-11-24",
- "last_search": "2026-11-28T01:23:38Z",
+ "last_search": "2026-11-28T09:22:11Z",
  "pending": {},
  "seen": {
   "--biqJeAjYk": [
@@ -161,6 +161,10 @@
    "skip",
    "2026-11-25"
   ],
+  "5_imyQWkiM0": [
+   "skip",
+   "2026-11-28"
+  ],
   "5hkxPZxznuw": [
    "skip",
    "2026-11-26"
@@ -240,6 +244,10 @@
   "9-KJtXcQzrY": [
    "posted",
    "2026-11-25"
+  ],
+  "985HMQG0MA8": [
+   "skip",
+   "2026-11-28"
   ],
   "98nP__SYcTk": [
    "short",
@@ -436,6 +444,10 @@
   "FK7SP-JdKKs": [
    "short",
    "2026-11-26"
+  ],
+  "FNPCHqCOEcw": [
+   "short",
+   "2026-11-28"
   ],
   "FePa6EcX5Ik": [
    "short",
@@ -653,6 +665,10 @@
    "skip",
    "2026-11-25"
   ],
+  "LlPxNxJ3mzA": [
+   "short",
+   "2026-11-28"
+  ],
   "LqtACLYGPIM": [
    "skip",
    "2026-11-26"
@@ -752,6 +768,10 @@
   "PZRQkqUYxaM": [
    "old",
    "2026-11-25"
+  ],
+  "PlgcZoefQfk": [
+   "skip",
+   "2026-11-28"
   ],
   "Ptr22wnsLWM": [
    "short",
@@ -884,6 +904,10 @@
   "VHulAwFhPag": [
    "old",
    "2026-11-25"
+  ],
+  "VS0mPF8JeRk": [
+   "skip",
+   "2026-11-28"
   ],
   "VV9z3TgBUuM": [
    "skip",
@@ -1077,6 +1101,10 @@
    "skip",
    "2026-11-25"
   ],
+  "b0RQFrB9PHs": [
+   "skip",
+   "2026-11-28"
+  ],
   "b222KGeJTNw": [
    "skip",
    "2026-11-25"
@@ -1236,6 +1264,10 @@
   "fnjhHTW0CNk": [
    "skip",
    "2026-11-25"
+  ],
+  "fzjzVGRRhRM": [
+   "skip",
+   "2026-11-28"
   ],
   "g01qxa6Zw4w": [
    "skip",
@@ -1468,6 +1500,10 @@
   "n_640BleixE": [
    "skip",
    "2026-11-25"
+  ],
+  "nnn5rEpIDso": [
+   "skip",
+   "2026-11-28"
   ],
   "noeWpDdq9fU": [
    "skip",
@@ -1844,6 +1880,10 @@
   "yyOKJ8AMnsI": [
    "skip",
    "2026-11-25"
+  ],
+  "z0PjwkR7UBw": [
+   "skip",
+   "2026-11-28"
   ],
   "zB8-wDkogic": [
    "posted",
